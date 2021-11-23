@@ -408,7 +408,7 @@ int main(int argc, char *argv[])
         V = V_3D;
     }
 
-    igl::writeOBJ("../data/cut_mesh_flat.obj", V_uv_2d, F);
+    igl::writeOBJ("../data/cut_mesh_flat.obj", V_uv, F);
 
     Eigen::MatrixXd N, N_uv, N_3D;
     igl::per_vertex_normals(V_uv, F, N_uv);

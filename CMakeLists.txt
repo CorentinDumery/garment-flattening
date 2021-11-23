@@ -13,7 +13,13 @@ add_executable(${PROJECT_NAME} ${SRCFILES} app/flat.cpp)
 target_link_libraries(${PROJECT_NAME} igl::core igl::opengl_glfw igl::png igl::opengl_glfw_imgui igl::triangle)
 include_directories(include)
 
-file(GLOB SRCFILES src/*.cpp)
 add_executable(procustes app/procustes.cpp)
-target_link_libraries(procustes igl::core igl::opengl_glfw igl::png igl::opengl_glfw_imgui igl::triangle)
+target_link_libraries(procustes igl::core igl::opengl_glfw igl::opengl_glfw_imgui)
+
+add_executable(net app/net.cpp)
+target_link_libraries(net igl::core igl::opengl_glfw igl::opengl_glfw_imgui)
+
+
+add_executable(render_coords app/render_coords.cpp)
+target_link_libraries(render_coords igl::opengl_glfw)
 
