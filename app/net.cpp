@@ -5,20 +5,24 @@
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/readOBJ.h>
 
-#include <igl/triangle_triangle_adjacency.h>
-#include <igl/boundary_facets.h>
-
+#include "net_param.h"
 
 int main(int argc, char *argv[]){
 
-    Eigen::MatrixXd V_3d, V;
+    Eigen::MatrixXd V_2d_d, V_3d_d;
     Eigen::MatrixXi F;
+    igl::readOBJ("../data/dress_front_cut.obj", V_3d_d, F);
+    igl::readOBJ("../data/flat_dress.obj", V_2d_d, F); // note: could also be encoded as UV in a single OBJ
 
-    igl::readOBJ("../data/flat_dress.obj", V_3d, F);
+    int n_vertices = V_2d_d.rows();
+    Eigen::MatrixXf V_2d(n_vertices, 2), V_3d(n_vertices, 3);
+    V_2d.col(0) = V_2d_d.col(0).cast<float>();
+    V_2d.col(1) = V_2d_d.col(1).cast<float>();
+    V_3d = V_3d_d.cast<float>();
 
     V_3d = V_3d.rowwise() - V_3d.colwise().minCoeff();
 
-    int n_fibers = 50;
+    int n_fibers = 50; // TODO
 
     V_3d *= static_cast<double>(n_fibers) / (V_3d.maxCoeff() - V_3d.minCoeff());
 
@@ -27,100 +31,22 @@ int main(int argc, char *argv[]){
     std::cout << "Y: " << V_3d.col(1).minCoeff() << " -> " << V_3d.col(1).maxCoeff()  << std::endl;
     std::cout << "Z: " << V_3d.col(2).minCoeff() << " -> " << V_3d.col(2).maxCoeff()  << std::endl;
 
-    V.resize(V_3d.rows(), 2);
-    V.col(0) = V_3d.col(0);
-    V.col(1) = V_3d.col(1);
+    /*V_2d.resize(V_3d.rows(), 2);
+    V_2d.col(0) = V_3d.col(0);
+    V_2d.col(1) = V_3d.col(1);*/
 
 
-    Eigen::MatrixXi TT, Eb;
-    igl::triangle_triangle_adjacency(F, TT);
+    NetParam net_param(F, V_3d, V_2d);
 
-    Eigen::VectorXi J, K;
-    igl::boundary_facets(F, Eb, J, K);
+    net_param.computeFibers();
 
-    Eigen::MatrixXd edge_begs(Eb.rows(), 2), edge_ends(Eb.rows(), 2);
+    
+    Eigen::MatrixXd edge_begs, edge_ends;
+    net_param.vizBoundaryEdges(edge_begs, edge_ends);
 
-    for (int i=0; i<Eb.rows(); i++){
-        edge_begs.row(i) = V.row(Eb(i,0));
-        edge_ends.row(i) = V.row(Eb(i,1));
-    }
-
-    auto interpolateToVal = [&V](int target, const Eigen::RowVector2d& v0, const Eigen::RowVector2d& v1, int axis){
-        double alpha0 = (static_cast<double>(target) - v0(axis)) / (v1(axis) - v0(axis)); 
-        return (1-alpha0) * v0 + (alpha0) * v1;
-    };
-
-    std::vector<Eigen::MatrixXd> fiber_begs_list;
-    std::vector<Eigen::MatrixXd> fiber_ends_list;
-
-    for (int axis=0; axis<2; axis++){ // For U and V
-
-        int min_ax = std::floor(V.col(axis).minCoeff()) + 1;
-        int max_ax = std::floor(V.col(axis).maxCoeff()) - 1;
-
-        std::map<int, std::vector<int>> fiber_axis_intersec;
-
-        for (int i=min_ax; i<=max_ax; i++){
-            fiber_axis_intersec[i] = {};
-        }
-
-        for (int i=0; i<Eb.rows(); i++){
-            Eigen::RowVector2d v0 = V.row(Eb(i,0));
-            Eigen::RowVector2d v1 = V.row(Eb(i,1));
-            int e_min_ax = std::floor(std::min(v0(axis), v1(axis))) + 1;
-            int e_max_ax = std::floor(std::max(v0(axis), v1(axis))) + 0;
-            for (int j = e_min_ax; j<= e_max_ax; j++){
-                fiber_axis_intersec[j].push_back(i);
-            }
-        }
-
-        int e_count = 0;
-
-        for (auto const& x : fiber_axis_intersec){
-            std::vector<int> vals = x.second; 
-            for (int j: vals) {
-                e_count ++;
-            }
-        }
-
-        if (e_count % 2 != 0) std::cout << "ERROR: odd number of edge intersections?" << std::endl;
-
-        e_count /= 2;
-
-        // Sort following other axis
-        for (auto & x : fiber_axis_intersec){
-            std::vector<int> vals = x.second; 
-            for (int j=0; j<vals.size(); j ++) {
-                for (int k=j+1; k<vals.size(); k ++) {
-                    double jv = ((V.row(Eb(vals[j], 0)) + V.row(Eb(vals[j], 1)))/2.0)((axis + 1) % 2); // not worth calling interpolateToVal here?
-                    double kv = ((V.row(Eb(vals[k], 0)) + V.row(Eb(vals[k], 1)))/2.0)((axis + 1) % 2);
-                    if (jv > kv){
-                        int temp = vals[k];
-                        vals[k] = vals[j];
-                        vals[j] = temp;
-                    }
-                }
-            }
-            x.second = vals;
-        }
-
-        // Visualize fiber edges
-        Eigen::MatrixXd fiber_begs(e_count, 2), fiber_ends(e_count, 2);
-        int curr_fib_id = 0;
-        for (auto const& x : fiber_axis_intersec){
-            std::vector<int> vals = x.second; 
-            for (int j=0; j<vals.size(); j += 2) {
-                fiber_begs.row(curr_fib_id) = interpolateToVal(x.first, V.row(Eb(vals[j], 0)), V.row(Eb(vals[j], 1)), axis);
-                fiber_ends.row(curr_fib_id) = interpolateToVal(x.first, V.row(Eb(vals[j+1], 0)), V.row(Eb(vals[j+1], 1)), axis);
-                curr_fib_id ++;
-            }
-        }
-
-        fiber_begs_list.push_back(fiber_begs);
-        fiber_ends_list.push_back(fiber_ends);
-        
-    }
-
+    auto fib_viz = net_param.vizFibers();
+    std::vector<Eigen::MatrixXd> fiber_begs_list = fib_viz[0];
+    std::vector<Eigen::MatrixXd> fiber_ends_list = fib_viz[1];
 
 
 
@@ -137,7 +63,7 @@ int main(int argc, char *argv[]){
     viewer.data().add_edges(edge_begs, edge_ends, Eigen::RowVector3d(1.0, 0.5, 0.6));
     viewer.data().add_edges(fiber_begs_list[0], fiber_ends_list[0], Eigen::RowVector3d(0.5, 1.0, 0.6));
     viewer.data().add_edges(fiber_begs_list[1], fiber_ends_list[1], Eigen::RowVector3d(0.5, 0.5, 1.0));
-    viewer.data().set_mesh(V, F);
+    viewer.data().set_mesh(V_2d_d, F);
 
     auto updateViz = [&](){
         viewer.data().clear_edges();

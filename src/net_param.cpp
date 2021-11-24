@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <vector>
+#include <map>
 
 #define OFFSCREEN_RENDERING_COORDS false
 
@@ -296,5 +297,92 @@ void NetParam::render(){
         // (including X close window button)
         glfwPollEvents();
  
+    }
+}
+
+void NetParam::vizBoundaryEdges(Eigen::MatrixXd& edge_begs, Eigen::MatrixXd& edge_ends){
+    edge_begs.resize(Eb_.rows(), 2);
+    edge_ends.resize(Eb_.rows(), 2);
+
+    for (int i=0; i<Eb_.rows(); i++){
+        edge_begs.row(i) = V_2d_.row(Eb_(i,0)).cast<double>();
+        edge_ends.row(i) = V_2d_.row(Eb_(i,1)).cast<double>();
+    }
+}
+
+void NetParam::computeFibers(){
+    
+    auto interpolateToVal = [](int target, const Eigen::RowVector2f& v0, const Eigen::RowVector2f& v1, int axis){
+        double alpha0 = (static_cast<double>(target) - v0(axis)) / (v1(axis) - v0(axis)); 
+        return (1-alpha0) * v0 + (alpha0) * v1;
+    };
+
+
+    for (int axis=0; axis<2; axis++){ // For U and V
+
+        int min_ax = std::floor(V_2d_.col(axis).minCoeff()) + 1;
+        int max_ax = std::floor(V_2d_.col(axis).maxCoeff()) - 1;
+
+        std::map<int, std::vector<int>> fiber_axis_intersec;
+
+        for (int i=min_ax; i<=max_ax; i++){
+            fiber_axis_intersec[i] = {};
+        }
+
+        for (int i=0; i<Eb_.rows(); i++){
+            Eigen::RowVector2f v0 = V_2d_.row(Eb_(i,0));
+            Eigen::RowVector2f v1 = V_2d_.row(Eb_(i,1));
+            int e_min_ax = std::floor(std::min(v0(axis), v1(axis))) + 1;
+            int e_max_ax = std::floor(std::max(v0(axis), v1(axis))) + 0;
+            for (int j = e_min_ax; j<= e_max_ax; j++){
+                fiber_axis_intersec[j].push_back(i);
+            }
+        }
+
+        int e_count = 0;
+
+        for (auto const& x : fiber_axis_intersec){
+            std::vector<int> vals = x.second; 
+            for (int j: vals) {
+                e_count ++;
+            }
+        }
+
+        if (e_count % 2 != 0) std::cout << "ERROR: odd number of edge intersections?" << std::endl;
+
+        e_count /= 2;
+
+        // Sort following other axis
+        for (auto & x : fiber_axis_intersec){
+            std::vector<int> vals = x.second; 
+            for (int j=0; j<vals.size(); j ++) {
+                for (int k=j+1; k<vals.size(); k ++) {
+                    double jv = ((V_2d_.row(Eb_(vals[j], 0)) + V_2d_.row(Eb_(vals[j], 1)))/2.0)((axis + 1) % 2); // not worth calling interpolateToVal here?
+                    double kv = ((V_2d_.row(Eb_(vals[k], 0)) + V_2d_.row(Eb_(vals[k], 1)))/2.0)((axis + 1) % 2);
+                    if (jv > kv){
+                        int temp = vals[k];
+                        vals[k] = vals[j];
+                        vals[j] = temp;
+                    }
+                }
+            }
+            x.second = vals;
+        }
+
+        // Visualize fiber edges
+        Eigen::MatrixXd fiber_begs(e_count, 2), fiber_ends(e_count, 2);
+        int curr_fib_id = 0;
+        for (auto const& x : fiber_axis_intersec){
+            std::vector<int> vals = x.second; 
+            for (int j=0; j<vals.size(); j += 2) {
+                fiber_begs.row(curr_fib_id) = interpolateToVal(x.first, V_2d_.row(Eb_(vals[j], 0)), V_2d_.row(Eb_(vals[j], 1)), axis).cast<double>();
+                fiber_ends.row(curr_fib_id) = interpolateToVal(x.first, V_2d_.row(Eb_(vals[j+1], 0)), V_2d_.row(Eb_(vals[j+1], 1)), axis).cast<double>();
+                curr_fib_id ++;
+            }
+        }
+
+        fiber_begs_list.push_back(fiber_begs);
+        fiber_ends_list.push_back(fiber_ends);
+        
     }
 }

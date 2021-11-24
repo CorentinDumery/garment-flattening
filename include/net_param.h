@@ -4,6 +4,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include <vector>
+
 class NetParam {
 
 public:
@@ -15,8 +17,13 @@ public:
     void render();
     void freeRenderingBuffers();
 
-private:
+    void vizBoundaryEdges(Eigen::MatrixXd& edge_begs, Eigen::MatrixXd& edge_ends);
+
     void computeFibers();
+    std::vector<std::vector<Eigen::MatrixXd>> vizFibers(){return {fiber_begs_list, fiber_ends_list};}
+
+private:
+    
     
     double measureFiber();
     void modifyParam();
@@ -37,4 +44,8 @@ private:
     unsigned int VBO, VAO, EBO;
     unsigned int shaderProgram; // TODO naming
     GLFWwindow* window;
+
+    // Net fiber variables
+    std::vector<Eigen::MatrixXd> fiber_begs_list; // Fiber viz
+    std::vector<Eigen::MatrixXd> fiber_ends_list; 
 };
