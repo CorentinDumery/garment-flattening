@@ -4,9 +4,8 @@
 #include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/readOBJ.h>
-#include <igl/triangle_triangle_adjacency.h>
 
-#include <igl/boundary_loop.h>
+#include <igl/triangle_triangle_adjacency.h>
 #include <igl/boundary_facets.h>
 
 
@@ -32,10 +31,6 @@ int main(int argc, char *argv[]){
     V.col(0) = V_3d.col(0);
     V.col(1) = V_3d.col(1);
 
-    /*int minu = std::floor(V.col(0).minCoeff()) + 1;
-    int maxu = std::floor(V.col(0).maxCoeff()) - 1;
-    int minv = std::floor(V.col(1).minCoeff()) + 1;
-    int maxv = std::floor(V.col(1).maxCoeff()) - 1;*/
 
     Eigen::MatrixXi TT, Eb;
     igl::triangle_triangle_adjacency(F, TT);
@@ -77,26 +72,20 @@ int main(int argc, char *argv[]){
             for (int j = e_min_ax; j<= e_max_ax; j++){
                 fiber_axis_intersec[j].push_back(i);
             }
-            //std::cout << i << "-th edge: " << v0(axis) << " -> " << v1(axis) << std::endl;
-            //std::cout << i << "-th int : " << e_min_ax << " -> " << e_max_ax << std::endl;
         }
 
         int e_count = 0;
 
         for (auto const& x : fiber_axis_intersec){
-            //std::cout << x.first << ": "; 
             std::vector<int> vals = x.second; 
             for (int j: vals) {
-                //std::cout << j << " ";
                 e_count ++;
             }
-            //std::cout << std::endl;
         }
 
         if (e_count % 2 != 0) std::cout << "ERROR: odd number of edge intersections?" << std::endl;
 
         e_count /= 2;
-
 
         // Sort following other axis
         for (auto & x : fiber_axis_intersec){

@@ -20,6 +20,6 @@ add_executable(net app/net.cpp)
 target_link_libraries(net igl::core igl::opengl_glfw igl::opengl_glfw_imgui)
 
 
-add_executable(render_coords app/render_coords.cpp)
-target_link_libraries(render_coords igl::opengl_glfw)
+add_executable(render_coords app/render_coords.cpp src/net_param.cpp)
+target_link_libraries(render_coords igl::opengl_glfw igl::core)
 
