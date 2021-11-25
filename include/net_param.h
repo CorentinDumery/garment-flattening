@@ -34,6 +34,8 @@ private:
     
     void modifyParam();
 
+    void prepareShaders();
+
     
 
     // CONFIG
