@@ -10,7 +10,7 @@
 
 #include "net_param.h"
 
-#define OFFSCREEN_RENDERING_COORDS false
+#define OFFSCREEN_RENDERING_COORDS false // TODO remove, also in net_param.cpp
 
 using std::chrono::steady_clock;
 using std::chrono::duration_cast;
@@ -31,14 +31,6 @@ int main(){
     V_2d.col(1) = V_2d_d.col(1).cast<float>();
     V_3d = V_3d_d.cast<float>();
 
-    V_2d = V_2d.array() - V_2d.minCoeff();
-    V_2d /= V_2d.maxCoeff()/2.0;
-    V_2d = V_2d.array() - 1.0;
-
-    V_3d = V_3d.array() - V_3d.minCoeff();
-    V_3d /= V_3d.maxCoeff();
-
-
     if (V_2d.rows() != V_3d.rows() || V_2d.rows() < 1){
         std::cout << "ERROR, mesh mismatch:" << std::endl;
         std::cout <<  V_2d.rows() << " vs " << V_3d.rows() << std::endl;
@@ -56,10 +48,15 @@ int main(){
     // render loop
 
     net_param.render();
-    
 
+    std::cout << "Rendered" << std::endl;
     
+    Eigen::RowVector2d start, end;
+    start << 0.4, 0.4;
+    end << 0.5, 0.4;
+    double length = net_param.measureFiber(start, end);
 
+    std::cout << "Length: " << length << std::endl;
 
 
     net_param.freeRenderingBuffers();

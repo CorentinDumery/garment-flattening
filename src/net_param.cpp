@@ -22,6 +22,29 @@ void processInput(GLFWwindow* window) {
         glfwSetWindowShouldClose(window, true);
 }
 
+void NetParam::fromInitToRenderCoords(Eigen::MatrixXf& points) const {
+    points.col(0) = points.col(0).array() - off_u_;
+    points.col(1) = points.col(1).array() - off_v_;
+    points.col(0) /= scale_u_; // (actually make it [-0.95,-0.95] so that UV can change a bit without needing to re-scale)
+    points.col(1) /= scale_v_;
+    points = points.array() - 0.95;
+}
+
+void NetParam::fromRenderToInitCoords(Eigen::MatrixXf& points) const{
+    points = points.rowwise() + Eigen::RowVector2f(0.95, 0.95);
+
+    points.col(0) *= scale_u_;
+    points.col(1) *= scale_v_;
+
+    points = points.rowwise() + Eigen::RowVector2f(off_u_, off_v_);
+}
+
+void NetParam::fromRenderToInitCoords(Eigen::MatrixXd& points) const{
+    Eigen::MatrixXf bis = points.cast<float>();
+    fromRenderToInitCoords(bis); // TODO template function instead
+    points = bis.cast<double>();
+}
+
 
 NetParam::NetParam(const Eigen::MatrixXi& F,
                    const Eigen::MatrixXf& V_3d,
@@ -33,6 +56,26 @@ NetParam::NetParam(const Eigen::MatrixXi& F,
 
     Eigen::VectorXi J, K;
     igl::boundary_facets(F_, Eb_, J, K);
+
+    // Scaling mesh:    
+    off_u_ = V_2d_.col(0).minCoeff();
+    off_v_ = V_2d_.col(1).minCoeff();
+    V_2d_.col(0) = V_2d_.col(0).array() - off_u_;
+    V_2d_.col(1) = V_2d_.col(1).array() - off_v_;
+    //V_2d_.col(0) /= V_2d_.col(0).maxCoeff()/2.0; // directly scale 2D mesh to [-1,1]x[-1,1] for rendering
+    //V_2d_.col(1) /= V_2d_.col(1).maxCoeff()/2.0;
+    // V_2d_ = V_2d_.array() - 1.0;
+
+    scale_u_ = V_2d_.col(0).maxCoeff()/1.9;
+    scale_v_ = V_2d_.col(1).maxCoeff()/1.9; 
+    V_2d_.col(0) /= scale_u_; // (actually make it [-0.95,-0.95] so that UV can change a bit without needing to re-scale)
+    V_2d_.col(1) /= scale_v_;
+    V_2d_ = V_2d_.array() - 0.95;
+
+    V_3d_ = V_3d_.array() - V_3d_.minCoeff();
+    V_3d_ /= V_3d_.maxCoeff();
+
+    RENDER_HEIGHT = static_cast<int>(static_cast<float>(RENDER_WIDTH) * scale_v_ / scale_u_);
 }
 
 void NetParam::initializeRendering(){
@@ -166,36 +209,6 @@ void NetParam::initializeRendering(){
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
  
-    // set vertex data 
-    /*
-    std::vector<float> vec2d = {
-       0.5f,  0.5f,  // top right // 0
-       0.5f, -0.5f,  // bottom right // 1
-      -0.5f, -0.5f,  // bottom left // 2
-      -0.5f,  0.5f,   // top left  // 3
-        0.0,  1.0 // mid top
-    };
-
-    float vertices_2d[vec2d.size()];
-    std::copy(vec2d.begin(), vec2d.end(), vertices_2d);
-
-    float vertices_3d[] = {
-       0.0f,  0.0f, 0.0,  // top right // 0
-       0.0f, -0.0f, 0.25,  // bottom right // 1
-      -0.0f, -0.0f, 0.5,  // bottom left // 2
-      -0.0f,  0.0f,  0.75,  // top left  // 3
-      -0.0f,  1.0f,  0.75,  // mid top
-    };
- 
-    // index buffer // Element Buffer Objects (EBO)
-    unsigned int indices[] = {  
-        0, 3, 1,   // first triangle
-        1, 2, 3,    // second triangle
-        0, 3, 4
-    };
-    int n_tris = 3;
-    //*/
- 
     // set vertex buffer object anb vertex array object and element buffer objects 
     
     glGenVertexArrays(1, &VAO);
@@ -239,6 +252,8 @@ void NetParam::initializeRendering(){
     // unbind the VAO
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+
+    std::cout << "Window initialization done" << std::endl;
 }
 
 void NetParam::freeRenderingBuffers(){
@@ -255,52 +270,105 @@ void NetParam::freeRenderingBuffers(){
 
 
 void NetParam::render(){
-    while (!glfwWindowShouldClose(window)) {
+    //while (!glfwWindowShouldClose(window)) {
         if (! OFFSCREEN_RENDERING_COORDS) 
             processInput(window);
  
+
+    std::cout << "1" << std::endl;
         // render
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+
+
+    std::cout << "2" << std::endl;
  
         // draw triangle
         glUseProgram(shaderProgram);
         glBindVertexArray(VAO); 
+
+    std::cout << "3" << std::endl;
         glDrawElements(GL_TRIANGLES, 3 * n_tris_, GL_UNSIGNED_INT, 0);
  
         //time_post_render = steady_clock::now();
 
-        int mx = 30;
-        float pixels[ 1 * RENDER_HEIGHT * 3 ];
-        glReadPixels(mx, 0, 1, RENDER_HEIGHT, GL_RGB, GL_FLOAT, pixels);
-
-        double dist = 0;
-        for (int i=0; i<RENDER_HEIGHT-1; i+=3){
-            if (pixels[3*i] == 0 && pixels[3*i+1] == 0 && pixels[3*i+2] == 0) continue; // note: we might miss a pixel at the origin in 3D
-            if (pixels[3*(i+1)] == 0 && pixels[3*(i+1)+1] == 0 && pixels[3*(i+1)+2] == 0) continue;
-            //std::cout << "(" << pixels[3*i] << " " << pixels[3*i+1] << " " << pixels[3*i+2] << ")" << std::endl;
-            dist += std::sqrt(std::pow(pixels[3*(i+1)  ] - pixels[3*i  ], 2) 
-                            + std::pow(pixels[3*(i+1)+1] - pixels[3*i+1], 2) 
-                            + std::pow(pixels[3*(i+1)+2] - pixels[3*i+2], 2));
-        }
-
-        std::cout << "dist = " << dist << std::endl; 
+        
 
         //time_post_read = steady_clock::now();
 
-        if (OFFSCREEN_RENDERING_COORDS) break;
+        //if (OFFSCREEN_RENDERING_COORDS) break;
 
         // glfw: swap buffers
-        glfwSwapBuffers(window);
+        //glfwSwapBuffers(window);
  
         // glfw: poll IO events (keys & mouse) 
         // (including X close window button)
-        glfwPollEvents();
+        //glfwPollEvents();
  
-    }
+    //}
 }
 
-void NetParam::vizBoundaryEdges(Eigen::MatrixXd& edge_begs, Eigen::MatrixXd& edge_ends){
+double NetParam::measureFiber(const Eigen::RowVector2d& start, const Eigen::RowVector2d& end) const {
+
+    //glfwMakeContextCurrent(window);
+    double du = start(0) - end(0);
+    double dv = start(1) - end(1);
+
+    int start_x = static_cast<int>(RENDER_WIDTH * start(0));
+    int start_y = static_cast<int>(RENDER_HEIGHT * start(1));
+    int end_x = static_cast<int>(RENDER_WIDTH * end(0));
+    int end_y = static_cast<int>(RENDER_HEIGHT * end(1));
+
+    std::cout << "Pixel range:" << std::endl;
+    std::cout << "X: " << start_x << " " << end_x << std::endl;
+    std::cout << "Y: " << start_y << " " << end_y << std::endl;
+
+    if (start_x > end_x || start_y > end_y){
+        std::cout << "ERROR, fiber given in wrong order: " << start << " " << end << std::endl;
+        throw "Invalid fiber";
+    }
+
+    int axis, width_read, height_read;
+    if (start_x == end_x){
+        axis = 0;
+        width_read = 1;
+        height_read = end_y - start_y;
+    }
+    else if (start_y == end_y){
+        axis = 1;
+        height_read = 1;
+        width_read = end_x - start_x;
+    }
+    else {
+        std::cout << "ERROR, measuring fiber with invalid values: " << du << " " << dv << std::endl;
+        throw "Invalid fiber";
+    }
+
+    float pixels[width_read * height_read * 3 ];
+    glReadPixels(start_x, start_y, width_read, height_read, GL_RGB, GL_FLOAT, pixels);
+
+    double dist = 0;
+    for (int i=0; i<width_read * height_read-1; i+=3){
+        if (pixels[3*i] == 0 && pixels[3*i+1] == 0 && pixels[3*i+2] == 0){
+            std::cout << "shouldn't happen " << std::endl; // NOTE: I could also find the origin of the fiber that way... but then I have to read all black pixels, is it worth it?
+            continue; // note: we might miss a pixel at the origin in 3D
+        } 
+        if (pixels[3*(i+1)] == 0 && pixels[3*(i+1)+1] == 0 && pixels[3*(i+1)+2] == 0) {
+            std::cout << "also shouldn't happen " << std::endl;
+            continue;
+        }
+        std::cout << "(" << pixels[3*i] << " " << pixels[3*i+1] << " " << pixels[3*i+2] << ")" << std::endl;
+        dist += std::sqrt(std::pow(pixels[3*(i+1)  ] - pixels[3*i  ], 2) 
+                        + std::pow(pixels[3*(i+1)+1] - pixels[3*i+1], 2) 
+                        + std::pow(pixels[3*(i+1)+2] - pixels[3*i+2], 2));
+    }
+
+    std::cout << "dist = " << dist << std::endl;
+    return dist;
+}
+    
+
+void NetParam::vizBoundaryEdges(Eigen::MatrixXd& edge_begs, Eigen::MatrixXd& edge_ends) const {
     edge_begs.resize(Eb_.rows(), 2);
     edge_ends.resize(Eb_.rows(), 2);
 
@@ -308,6 +376,9 @@ void NetParam::vizBoundaryEdges(Eigen::MatrixXd& edge_begs, Eigen::MatrixXd& edg
         edge_begs.row(i) = V_2d_.row(Eb_(i,0)).cast<double>();
         edge_ends.row(i) = V_2d_.row(Eb_(i,1)).cast<double>();
     }
+
+    fromRenderToInitCoords(edge_begs);
+    fromRenderToInitCoords(edge_ends);
 }
 
 void NetParam::computeFibers(){
@@ -317,11 +388,14 @@ void NetParam::computeFibers(){
         return (1-alpha0) * v0 + (alpha0) * v1;
     };
 
+    Eigen::MatrixXf V_2d_bis = V_2d_;
+    fromRenderToInitCoords(V_2d_bis);
+
 
     for (int axis=0; axis<2; axis++){ // For U and V
 
-        int min_ax = std::floor(V_2d_.col(axis).minCoeff()) + 1;
-        int max_ax = std::floor(V_2d_.col(axis).maxCoeff()) - 1;
+        int min_ax = std::floor(V_2d_bis.col(axis).minCoeff()) + 1;
+        int max_ax = std::floor(V_2d_bis.col(axis).maxCoeff()) - 1;
 
         std::map<int, std::vector<int>> fiber_axis_intersec;
 
@@ -330,8 +404,8 @@ void NetParam::computeFibers(){
         }
 
         for (int i=0; i<Eb_.rows(); i++){
-            Eigen::RowVector2f v0 = V_2d_.row(Eb_(i,0));
-            Eigen::RowVector2f v1 = V_2d_.row(Eb_(i,1));
+            Eigen::RowVector2f v0 = V_2d_bis.row(Eb_(i,0));
+            Eigen::RowVector2f v1 = V_2d_bis.row(Eb_(i,1));
             int e_min_ax = std::floor(std::min(v0(axis), v1(axis))) + 1;
             int e_max_ax = std::floor(std::max(v0(axis), v1(axis))) + 0;
             for (int j = e_min_ax; j<= e_max_ax; j++){
@@ -357,8 +431,8 @@ void NetParam::computeFibers(){
             std::vector<int> vals = x.second; 
             for (int j=0; j<vals.size(); j ++) {
                 for (int k=j+1; k<vals.size(); k ++) {
-                    double jv = ((V_2d_.row(Eb_(vals[j], 0)) + V_2d_.row(Eb_(vals[j], 1)))/2.0)((axis + 1) % 2); // not worth calling interpolateToVal here?
-                    double kv = ((V_2d_.row(Eb_(vals[k], 0)) + V_2d_.row(Eb_(vals[k], 1)))/2.0)((axis + 1) % 2);
+                    double jv = ((V_2d_bis.row(Eb_(vals[j], 0)) + V_2d_bis.row(Eb_(vals[j], 1)))/2.0)((axis + 1) % 2); // not worth calling interpolateToVal here?
+                    double kv = ((V_2d_bis.row(Eb_(vals[k], 0)) + V_2d_bis.row(Eb_(vals[k], 1)))/2.0)((axis + 1) % 2);
                     if (jv > kv){
                         int temp = vals[k];
                         vals[k] = vals[j];
@@ -375,8 +449,8 @@ void NetParam::computeFibers(){
         for (auto const& x : fiber_axis_intersec){
             std::vector<int> vals = x.second; 
             for (int j=0; j<vals.size(); j += 2) {
-                fiber_begs.row(curr_fib_id) = interpolateToVal(x.first, V_2d_.row(Eb_(vals[j], 0)), V_2d_.row(Eb_(vals[j], 1)), axis).cast<double>();
-                fiber_ends.row(curr_fib_id) = interpolateToVal(x.first, V_2d_.row(Eb_(vals[j+1], 0)), V_2d_.row(Eb_(vals[j+1], 1)), axis).cast<double>();
+                fiber_begs.row(curr_fib_id) = interpolateToVal(x.first, V_2d_bis.row(Eb_(vals[j], 0)), V_2d_bis.row(Eb_(vals[j], 1)), axis).cast<double>();
+                fiber_ends.row(curr_fib_id) = interpolateToVal(x.first, V_2d_bis.row(Eb_(vals[j+1], 0)), V_2d_bis.row(Eb_(vals[j+1], 1)), axis).cast<double>();
                 curr_fib_id ++;
             }
         }
