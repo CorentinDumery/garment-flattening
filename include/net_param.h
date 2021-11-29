@@ -23,6 +23,7 @@ public:
     std::vector<std::vector<Eigen::MatrixXd>> vizFibers() const {return {fiber_begs_list, fiber_ends_list};}
 
     double measureFiber(const Eigen::RowVector2d& start, const Eigen::RowVector2d& end) const;
+    double simpleMeasureFiber(const Eigen::RowVector2f& start, const Eigen::RowVector2f& end) const ;
 
     // 2D mesh is in [-1, 1] for rendering, this function converts back to initial coords
     // Note: we could keep normal coords and just send min/max to shader instead
@@ -30,11 +31,20 @@ public:
     void fromRenderToInitCoords(Eigen::MatrixXf& points) const;
     void fromRenderToInitCoords(Eigen::MatrixXd& points) const;
 
+    std::vector<Eigen::VectorXd> computeFibersDistortion() const;
+    std::vector<Eigen::MatrixXd> computeFibersColor() const;
+
+    std::vector<std::vector<int>> nearestFibers(const Eigen::RowVector2f& vertex) const; 
+    void adjustVertices();
+
+    Eigen::MatrixXf getV2d() const {return V_2d_;}
+
 private:
     
     void modifyParam();
 
     void prepareShaders();
+    void prepareBuffers();
 
     
 
@@ -62,4 +72,6 @@ private:
     // Net fiber variables
     std::vector<Eigen::MatrixXd> fiber_begs_list; // Fiber viz
     std::vector<Eigen::MatrixXd> fiber_ends_list; 
+    std::vector<Eigen::VectorXd> fiber_dist;
+    bool dirty_fibers = false; // TODO
 };
