@@ -22,3 +22,8 @@ target_link_libraries(net igl::core igl::opengl_glfw igl::opengl_glfw_imgui)
 add_executable(render_coords app/render_coords.cpp src/net_param.cpp)
 target_link_libraries(render_coords igl::opengl_glfw igl::core)
 
+add_executable(triangle_energies app/triangle_energies.cpp src/net_param.cpp)
+target_link_libraries(triangle_energies igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
+
+add_executable(crosses app/crosses.cpp)
+target_link_libraries(crosses igl::opengl_glfw igl::core igl::opengl_glfw_imgui)

@@ -65,6 +65,7 @@ int main(int argc, char *argv[]){
     Eigen::RowVector2f start_point(start_u, start_v);
     Eigen::RowVector2f end_point;
     std::vector<std::vector<int>> selected_fibers;
+    Eigen::RowVector2d cursor_pos(-1,-1);
 
     std::vector<Eigen::MatrixXd> colors_per_axis;
    
@@ -207,7 +208,6 @@ int main(int argc, char *argv[]){
                 
             }
 
-
             ImGui::Text(std::to_string(0.75).substr(0,5).c_str());
             std::string text = std::to_string(1.25).substr(0,5);
             auto textWidth   = ImGui::CalcTextSize(text.c_str()).x;
@@ -222,8 +222,11 @@ int main(int argc, char *argv[]){
             if (ImGui::Button("Adjust UV")){
                 net_param.adjustVertices();
                 V_2d_d = net_param.getV2d().cast<double>();
-                net_param.fromRenderToInitCoords(V_2d_d);
+                //net_param.f romRenderToInitCoords(V_2d_d);
+                updateViz();
             }
+
+            ImGui::Text("Cursor position on mesh: %f, %f", cursor_pos(0), cursor_pos(1));
 
             ImGui::End();
         }
@@ -231,15 +234,15 @@ int main(int argc, char *argv[]){
         
     };
 
-    viewer.callback_mouse_move = [&V_2d_d, &F, &mesh_id, &net_param, &selected_fibers, &updateViz](igl::opengl::glfw::Viewer& viewer, int mouse_x, int mouse_y){
+    viewer.callback_mouse_move = [&V_2d_d, &F, &mesh_id, &net_param, &selected_fibers, &updateViz, &cursor_pos](igl::opengl::glfw::Viewer& viewer, int mouse_x, int mouse_y){
         int fid = -2;
         Eigen::RowVector3d bc;
         if(igl::unproject_onto_mesh(Eigen::Vector2f(mouse_x, viewer.core().viewport(3) - mouse_y), viewer.core().view,
             viewer.core().proj, viewer.core().viewport, V_2d_d, F, fid, bc)){
-            
-            std::cout << fid << std::endl;
 
             Eigen::RowVector2d p = V_2d_d.row(F(fid, 0)) * bc(0) + V_2d_d.row(F(fid, 1)) * bc(1) + V_2d_d.row(F(fid, 2)) * bc(2);
+
+            cursor_pos = p;
 
             selected_fibers = net_param.nearestFibers(p.cast<float>()); 
 

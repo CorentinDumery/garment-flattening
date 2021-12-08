@@ -60,22 +60,32 @@ NetParam::NetParam(const Eigen::MatrixXi& F,
     Eigen::VectorXi J, K;
     igl::boundary_facets(F_, Eb_, J, K);
 
+    if (V_2d_.cols() > 2){
+        std::cout << "WARNING: received 2D mesh in a 3D matrix (at least), discarding other columns" << std::endl;
+        Eigen::MatrixXf temp = V_2d_;
+        V_2d_.resize(V_2d_.rows(), 2);
+        V_2d_.col(0) = temp.col(0);
+        V_2d_.col(1) = temp.col(1);
+    }
+
+    //std::cout << Eb_ << std::endl;
+
     // Scaling mesh:    
     off_u_ = V_2d_.col(0).minCoeff();
     off_v_ = V_2d_.col(1).minCoeff();
-    V_2d_.col(0) = V_2d_.col(0).array() - off_u_;
-    V_2d_.col(1) = V_2d_.col(1).array() - off_v_;
+    //V_2d_.col(0) = V_2d_.col(0).array() - off_u_;
+    //V_2d_.col(1) = V_2d_.col(1).array() - off_v_;
     //V_2d_.col(0) /= V_2d_.col(0).maxCoeff()/2.0; // directly scale 2D mesh to [-1,1]x[-1,1] for rendering
     //V_2d_.col(1) /= V_2d_.col(1).maxCoeff()/2.0;
     // V_2d_ = V_2d_.array() - 1.0;
 
-    scale_u_ = V_2d_.col(0).maxCoeff()/1.9;
-    scale_v_ = V_2d_.col(1).maxCoeff()/1.9; 
-    V_2d_.col(0) /= scale_u_; // (actually make it [-0.95,-0.95] so that UV can change a bit without needing to re-scale)
-    V_2d_.col(1) /= scale_v_;
-    V_2d_ = V_2d_.array() - 0.95;
+    scale_u_ = (V_2d_.col(0).array() - off_u_).maxCoeff()/1.9;
+    scale_v_ = (V_2d_.col(1).array() - off_v_).maxCoeff()/1.9; 
+    //V_2d_.col(0) /= scale_u_; // (actually make it [-0.95,-0.95] so that UV can change a bit without needing to re-scale)
+    //V_2d_.col(1) /= scale_v_;
+    //V_2d_ = V_2d_.array() - 0.95;
 
-    V_3d_ = V_3d_.array() - V_3d_.minCoeff();
+    //V_3d_ = V_3d_.array() - V_3d_.minCoeff();
     //V_3d_ /= V_3d_.maxCoeff();
 
     RENDER_HEIGHT = static_cast<int>(static_cast<float>(RENDER_WIDTH) * scale_v_ / scale_u_);
@@ -446,8 +456,8 @@ void NetParam::vizBoundaryEdges(Eigen::MatrixXd& edge_begs, Eigen::MatrixXd& edg
         edge_ends.row(i) = V_2d_.row(Eb_(i,1)).cast<double>();
     }
 
-    fromRenderToInitCoords(edge_begs);
-    fromRenderToInitCoords(edge_ends);
+    //f romRenderToInitCoords(edge_begs);
+    //f romRenderToInitCoords(edge_ends);
 }
 
 void NetParam::computeFibers(){
@@ -457,14 +467,17 @@ void NetParam::computeFibers(){
         return (1-alpha0) * v0 + (alpha0) * v1;
     };
 
-    Eigen::MatrixXf V_2d_bis = V_2d_;
-    fromRenderToInitCoords(V_2d_bis);
+    // Eigen::MatrixXf V_2d_ = V_2d_;
+    // f romRenderToInitCoords(V_2d_);
 
 
     for (int axis=0; axis<2; axis++){ // For U and V
+        #ifdef NET_PARAM_DEBUG
+        std::cout << "Compute fibers, axis " << axis << std::endl;
+        #endif
 
-        int min_ax = std::floor(V_2d_bis.col(axis).minCoeff()) + 1;
-        int max_ax = std::floor(V_2d_bis.col(axis).maxCoeff()) - 1;
+        int min_ax = std::floor(V_2d_.col(axis).minCoeff()) + 1;
+        int max_ax = std::floor(V_2d_.col(axis).maxCoeff()) - 1;
 
         std::map<int, std::vector<int>> fiber_axis_intersec;
 
@@ -473,8 +486,8 @@ void NetParam::computeFibers(){
         }
 
         for (int i=0; i<Eb_.rows(); i++){
-            Eigen::RowVector2f v0 = V_2d_bis.row(Eb_(i,0));
-            Eigen::RowVector2f v1 = V_2d_bis.row(Eb_(i,1));
+            Eigen::RowVector2f v0 = V_2d_.row(Eb_(i,0));
+            Eigen::RowVector2f v1 = V_2d_.row(Eb_(i,1));
             int e_min_ax = std::floor(std::min(v0(axis), v1(axis))) + 1;
             int e_max_ax = std::floor(std::max(v0(axis), v1(axis))) + 0;
             for (int j = e_min_ax; j<= e_max_ax; j++){
@@ -495,13 +508,18 @@ void NetParam::computeFibers(){
 
         e_count /= 2;
 
+        #ifdef NET_PARAM_DEBUG
+        std::cout << "Compute fibers, e_count " << e_count << std::endl;
+        if (e_count <= 0) std::cout << "ERROR: not enough edge intersections?" << std::endl;
+        #endif
+
         // Sort following other axis
         for (auto & x : fiber_axis_intersec){
             std::vector<int> vals = x.second; 
             for (int j=0; j<vals.size(); j ++) {
                 for (int k=j+1; k<vals.size(); k ++) {
-                    double jv = ((V_2d_bis.row(Eb_(vals[j], 0)) + V_2d_bis.row(Eb_(vals[j], 1)))/2.0)((axis + 1) % 2); // not worth calling interpolateToVal here?
-                    double kv = ((V_2d_bis.row(Eb_(vals[k], 0)) + V_2d_bis.row(Eb_(vals[k], 1)))/2.0)((axis + 1) % 2);
+                    double jv = ((V_2d_.row(Eb_(vals[j], 0)) + V_2d_.row(Eb_(vals[j], 1)))/2.0)((axis + 1) % 2); // not worth calling interpolateToVal here?
+                    double kv = ((V_2d_.row(Eb_(vals[k], 0)) + V_2d_.row(Eb_(vals[k], 1)))/2.0)((axis + 1) % 2);
                     if (jv > kv){
                         int temp = vals[k];
                         vals[k] = vals[j];
@@ -518,8 +536,8 @@ void NetParam::computeFibers(){
         for (auto const& x : fiber_axis_intersec){
             std::vector<int> vals = x.second; 
             for (int j=0; j<vals.size(); j += 2) {
-                fiber_begs.row(curr_fib_id) = interpolateToVal(x.first, V_2d_bis.row(Eb_(vals[j], 0)), V_2d_bis.row(Eb_(vals[j], 1)), axis).cast<double>();
-                fiber_ends.row(curr_fib_id) = interpolateToVal(x.first, V_2d_bis.row(Eb_(vals[j+1], 0)), V_2d_bis.row(Eb_(vals[j+1], 1)), axis).cast<double>();
+                fiber_begs.row(curr_fib_id) = interpolateToVal(x.first, V_2d_.row(Eb_(vals[j], 0)), V_2d_.row(Eb_(vals[j], 1)), axis).cast<double>();
+                fiber_ends.row(curr_fib_id) = interpolateToVal(x.first, V_2d_.row(Eb_(vals[j+1], 0)), V_2d_.row(Eb_(vals[j+1], 1)), axis).cast<double>();
                 curr_fib_id ++;
             }
         }
@@ -528,6 +546,10 @@ void NetParam::computeFibers(){
         fiber_ends_list.push_back(fiber_ends);
         
     }
+
+    #ifdef NET_PARAM_DEBUG
+    std::cout << "Compute fibers done" << std::endl;
+    #endif
 }
 
 std::vector<Eigen::VectorXd> NetParam::computeFibersDistortion() const {
@@ -539,8 +561,8 @@ std::vector<Eigen::VectorXd> NetParam::computeFibersDistortion() const {
         return {};
     }
 
-    Eigen::MatrixXf V_2d_bis = V_2d_;
-    fromRenderToInitCoords(V_2d_bis);
+    // Eigen::MatrixXf V_2d_bis = V_2d_;
+    // f romRenderToInitCoords(V_2d_bis);
 
     std::vector<Eigen::VectorXd> fiber_dist_per_axis;
     for (int axis=0; axis<2; axis++){
@@ -548,16 +570,16 @@ std::vector<Eigen::VectorXd> NetParam::computeFibersDistortion() const {
         Eigen::VectorXd fiber_dist(n_fibs);
 
         for (int fib=0; fib<fiber_begs_list[axis].rows(); fib++){
-            Eigen::MatrixXf v1, v1r, v2, v2r;
+            Eigen::MatrixXf v1, v2;
             v1 = fiber_begs_list[axis].row(fib).cast<float>();
             v2 = fiber_ends_list[axis].row(fib).cast<float>();
-            v1r = v1;
-            v2r = v2;
-            fromInitToRenderCoords(v1r);
-            fromInitToRenderCoords(v2r);
+            // v1r = v1;
+            // v2r = v2;
+            // f romInitToRenderCoords(v1r);
+            // f romInitToRenderCoords(v2r);
 
             //double len = measureFiber(v1b, v2b);
-            double len = simpleMeasureFiber(v1r, v2r);
+            double len = simpleMeasureFiber(v1, v2);
             double len2 = (v1 - v2).norm();
 
             if (axis == 0) len *= scale_u_ / scale_v_; // TODO investigate ???
@@ -601,8 +623,8 @@ std::vector<std::vector<int>> NetParam::nearestFibers(const Eigen::RowVector2f& 
         int fib2 = 0; // right
         
         int pos = 0;
-        std::cout << "Fibrows " << fibers.rows() << std::endl;
-        std::cout << t << " <? " << fibers(pos + 1) << std::endl;
+        //std::cout << "Fibrows " << fibers.rows() << std::endl;
+        //std::cout << t << " <? " << fibers(pos + 1) << std::endl;
         while (pos < fibers.rows() && t >= fibers(pos)){
             pos ++;
             fib1 ++;
@@ -623,7 +645,7 @@ std::vector<std::vector<int>> NetParam::nearestFibers(const Eigen::RowVector2f& 
         };
 
         float init_dist1 = vertex(axis) - fiber_begs_list[axis](fib1, axis);
-        while (true && fib1 > 0){
+        while (true && fib1 >= 0){
             if (!canProjOnFiber(vertex((axis+1) % 2), fiber_begs_list[axis](fib1, (axis+1) % 2), fiber_ends_list[axis](fib1, (axis+1) % 2))){
                 fib1 --;
             }
@@ -635,12 +657,12 @@ std::vector<std::vector<int>> NetParam::nearestFibers(const Eigen::RowVector2f& 
         }
 
         float init_dist2 = fiber_begs_list[axis](fib2, axis) - vertex(axis);
-        while (true && fib2 < fiber_begs_list[axis].rows()){
+        while (true && fib2 < fiber_begs_list[axis].rows() && fib2 != -1){
             if (!canProjOnFiber(vertex((axis+1) % 2), fiber_begs_list[axis](fib2, (axis+1) % 2), fiber_ends_list[axis](fib2, (axis+1) % 2))){
                 fib2 ++;
             }
             else break;
-            if (fiber_begs_list[axis](fib2, axis) - vertex(axis) > init_dist2 * 1.1){
+            if (fiber_begs_list[axis](fib2, axis) - vertex(axis) > init_dist2 * 1.1 || fib2 == fiber_begs_list[axis].rows()){
                 fib2 = -1;
                 break;
             }
