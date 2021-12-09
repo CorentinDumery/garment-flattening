@@ -5,11 +5,14 @@
 #include <igl/barycentric_coordinates.h>
 #include <igl/jet.h>
 
+#include <igl/opengl/glfw/background_window.h>
+#include <igl/opengl/init_render_to_texture.h>
 
 #include <iostream>
 #include <vector>
 #include <map>
 
+//#define NET_PARAM_DEBUG
 #define OFFSCREEN_RENDERING_COORDS false
 
 // TODO put these functions somewhere
@@ -111,10 +114,10 @@ void NetParam::prepareShaders(){
     const char* fragmentShaderSource = 
     "#version 450 core\n"
     "in vec3 interpColor;\n"
-    "out vec4 FragmentColor;\n"
+    "layout(location = 0) out vec3 FragmentColor;\n"
     "void main()\n"
     "{\n"
-    "   FragmentColor = vec4(interpColor, 1.0);\n"
+    "   FragmentColor = interpColor;\n"
     "}\n\0";
  
     // vertex shader
@@ -156,7 +159,7 @@ void NetParam::prepareShaders(){
     glDeleteShader(fragmentShader);
 }
 
-void NetParam::initializeRendering(){
+void NetParam::prepareBuffers(){
 
 
     std::vector<float> V_2d_vec;
@@ -197,36 +200,6 @@ void NetParam::initializeRendering(){
     //int n_tris = indices_vec.size() / 3;
     //*/
 
-
-
-    // glfw: initialize
-    glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    // OFFSCREEN RENDERING https://github.com/glfw/glfw/blob/master/examples/offscreen.c
-    if (OFFSCREEN_RENDERING_COORDS){
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-        glfwInitHint(GLFW_COCOA_MENUBAR, GLFW_FALSE); // no menubar for mac users
-    }
-
-    // glfw: create window
-    window = glfwCreateWindow(RENDER_WIDTH, RENDER_HEIGHT, "Window Title", NULL, NULL);
-    if (window == NULL) {
-        std::cout << "Failed to create GLFW window" << "\n";
-        glfwTerminate();
-    }
-    glfwMakeContextCurrent(window);
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
- 
-    // glad: load all OpenGL function pointers
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        std::cout << "Failed to initialize GLAD" << "\n";
-    }
-
-    prepareShaders();
- 
     // set vertex buffer object anb vertex array object and element buffer objects 
     
     glGenVertexArrays(1, &VAO);
@@ -271,18 +244,55 @@ void NetParam::initializeRendering(){
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
+}
+
+void NetParam::initializeRendering(){
+
+    // glfw: initialize
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    // OFFSCREEN RENDERING https://github.com/glfw/glfw/blob/master/examples/offscreen.c
+    if (OFFSCREEN_RENDERING_COORDS){
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        glfwInitHint(GLFW_COCOA_MENUBAR, GLFW_FALSE); // no menubar for mac users
+    }
+
+    // glfw: create window
+    window = glfwCreateWindow(RENDER_WIDTH, RENDER_HEIGHT, "Window Title", NULL, NULL);
+    if (window == NULL) {
+        std::cout << "Failed to create GLFW window" << "\n";
+        glfwTerminate();
+    }
+    glfwMakeContextCurrent(window);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+ 
+    // glad: load all OpenGL function pointers
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        std::cout << "Failed to initialize GLAD" << "\n";
+    }
+
+    prepareShaders();
+ 
+    prepareBuffers();
+
     std::cout << "Window initialization done" << std::endl;
 }
 
 void NetParam::freeRenderingBuffers(){
- // de-allocate all resources
+    // de-allocate all resources
+    glBindVertexArray(0);
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
+    glUseProgram(0);
     glDeleteProgram(shaderProgram);
  
+    glfwDestroyWindow(window);
     // glfw: terminate and clear all previously GLFW allocated resources
-    glfwTerminate();
+    // glfwTerminate();
 
 }
 
@@ -317,10 +327,10 @@ double NetParam::simpleMeasureFiber(const Eigen::RowVector2f& start, const Eigen
     /*std::cout << "start/end" << std::endl;
     std::cout << start << std::endl;
     std::cout << end << std::endl;*/
-    int resolution = 30;
+    int resolution = 50;
 
     //Eigen::MatrixXf V_2d_ter = V_2d_;
-    //fromRenderToInitCoords(V_2d_ter);
+    //f romRenderToInitCoords(V_2d_ter);
 
     auto findPoint = [&](const Eigen::RowVector2f& point,
                          int& id,
@@ -445,6 +455,235 @@ double NetParam::measureFiber(const Eigen::RowVector2d& start, const Eigen::RowV
     std::cout << "dist = " << dist << std::endl;
     return dist;
 }
+
+
+void NetParam::alternativeRenderingAttempt(float start_u, float start_v, float measure_length){
+
+
+    std::vector<float> V_2d_vec;
+    // TODO REPLACE THIS
+    for (int i=0; i<V_2d_.rows(); i++){
+        for (int j=0; j<V_2d_.cols(); j++){
+            V_2d_vec.push_back(V_2d_(i,j));
+        }    
+    }
+
+    std::vector<float> V_3d_vec;
+    // TODO REPLACE THIS
+    for (int i=0; i<V_3d_.rows(); i++){
+        for (int j=0; j<V_3d_.cols(); j++){
+            V_3d_vec.push_back(V_3d_(i,j));
+        }    
+    }
+
+    std::vector<unsigned int> indices_vec; 
+    // TODO REPLACE THIS
+    for (int i=0; i<F_.rows(); i++){
+        for (int j=0; j<F_.cols(); j++){
+            indices_vec.push_back(static_cast<unsigned int>(F_(i,j)));
+        }    
+    }
+
+
+    //*
+    float vertices_2d[V_2d_vec.size()];
+    std::copy(V_2d_vec.begin(), V_2d_vec.end(), vertices_2d);
+
+    float vertices_3d[V_3d_vec.size()];
+    std::copy(V_3d_vec.begin(), V_3d_vec.end(), vertices_3d);
+
+    unsigned int indices[indices_vec.size()];
+    std::copy(indices_vec.begin(), indices_vec.end(), indices);
+
+    //GLFWwindow * window;
+    if(!igl::opengl::glfw::background_window(window)){
+        std::cout << "Could not initialize glfw window" << std::endl;
+        glfwTerminate();
+        return;
+    }
+
+    prepareShaders();
+
+    prepareBuffers();
+
+    /*glUniform1i(glGetUniformLocation(shaderProgram, "tex"),0);
+    // Prepare texture
+    GLuint in_tex;
+    GLenum format;
+    {
+        int nc = 3;
+        int w = RENDER_WIDTH;
+        int h = RENDER_HEIGHT;
+        format = nc==1 ? GL_RED : (nc==3 ? GL_RGB : (nc == 4 ? GL_RGBA : GL_FALSE));
+        glGenTextures(1, &in_tex);
+        glBindTexture(GL_TEXTURE_2D, in_tex);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, w, h, 0,format, GL_UNSIGNED_BYTE, in_data);
+    }*/
+
+
+
+
+    // Render to FBO http://www.opengl-tutorial.org/fr/intermediate-tutorials/tutorial-14-render-to-texture/
+
+    // The framebuffer, which regroups 0, 1, or more textures, and 0 or 1 depth buffer.
+    GLuint FramebufferName = 0;
+    glGenFramebuffers(1, &FramebufferName);
+    glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
+
+    // The texture we're going to render to
+    GLuint renderedTexture;
+    glGenTextures(1, &renderedTexture);
+
+    // "Bind" the newly created texture : all future texture functions will modify this texture
+    glBindTexture(GL_TEXTURE_2D, renderedTexture);
+
+    // Give an empty image to OpenGL ( the last "0" )
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, RENDER_WIDTH, RENDER_HEIGHT, 0,GL_RGB, GL_UNSIGNED_BYTE, 0);
+
+    // Poor filtering. Needed !
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+
+    // Set "renderedTexture" as our colour attachement #0
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, renderedTexture, 0);
+
+    // Set the list of draw buffers.
+    GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+    glDrawBuffers(1, DrawBuffers); // "1" is the size of DrawBuffers
+
+    // Always check that our framebuffer is ok
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "Framebuffer ERROR" << std::endl;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
+    glViewport(0,0,RENDER_WIDTH, RENDER_HEIGHT);
+
+
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // draw triangle
+    glUseProgram(shaderProgram);
+    glBindVertexArray(VAO); 
+
+    glDrawElements(GL_TRIANGLES, 3 * n_tris_, GL_UNSIGNED_INT, 0);
+    
+    std::cout << RENDER_WIDTH << " x " << RENDER_HEIGHT << std::endl;
+    //float start_u = 0.4, start_v=0.4, measure_length = 3.0;
+    int measure_axis = 0;
+    double measurement = -1;
+    bool first_menu_call = true;
+    Eigen::MatrixXf start_mat, end_mat;
+    Eigen::RowVector2f start_point(start_u, start_v);
+    Eigen::RowVector2f end_point;
+
+    start_mat = start_point;
+    //f romInitToRenderCoords(start_mat); // TODO get rid of this ?
+
+    end_point = start_point;
+    end_point(measure_axis) += measure_length;
+    end_mat = end_point;
+    //f romInitToRenderCoords(end_mat); // TODO get rid of this ?
+    Eigen::RowVector2d temp_start, temp_end;
+    temp_start.row(0) = start_mat.row(0).cast<double>();
+    temp_end.row(0) = end_mat.row(0).cast<double>();
+    measureFiber(temp_start, temp_end);
+
+
+    glDeleteFramebuffers(1, &FramebufferName);
+    glDeleteTextures(1, &renderedTexture);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindVertexArray(0);
+    freeRenderingBuffers();
+}
+
+
+
+void NetParam::otherRenderingAttempt(float start_u, float start_v, float measure_length){
+    GLuint tex_id, fbo_id, d_id;
+    bool depth_texture = true;
+    igl::opengl::init_render_to_texture(RENDER_WIDTH, RENDER_HEIGHT, depth_texture, tex_id, fbo_id, d_id);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo_id);
+    if(!depth_texture)
+    {
+      glBindRenderbuffer(GL_RENDERBUFFER, d_id);
+    }
+    
+    //draw scene ...
+
+
+    /// ---------------------
+
+    prepareBuffers();
+
+
+    glClearColor(0.1f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glActiveTexture(GL_TEXTURE0+0);
+    glBindTexture(GL_TEXTURE_2D,tex_id);
+
+    // draw triangle
+    glUseProgram(shaderProgram);
+    glBindVertexArray(VAO); 
+
+    glDrawElements(GL_TRIANGLES, 3 * n_tris_, GL_UNSIGNED_INT, 0);
+
+
+    std::cout << RENDER_WIDTH << " x " << RENDER_HEIGHT << std::endl;
+    //float start_u = 0.4, start_v=0.4, measure_length = 3.0;
+    int measure_axis = 0;
+    double measurement = -1;
+    bool first_menu_call = true;
+    Eigen::MatrixXf start_mat, end_mat;
+    Eigen::RowVector2f start_point(start_u, start_v);
+    Eigen::RowVector2f end_point;
+
+    start_mat = start_point;
+    //f romInitToRenderCoords(start_mat); // TODO get rid of this ?
+
+    end_point = start_point;
+    end_point(measure_axis) += measure_length;
+    end_mat = end_point;
+    // f romInitToRenderCoords(end_mat); // TODO get rid of this ?
+    Eigen::RowVector2d temp_start, temp_end;
+    temp_start.row(0) = start_mat.row(0).cast<double>();
+    temp_end.row(0) = end_mat.row(0).cast<double>();
+    measureFiber(temp_start, temp_end);
+
+
+    /// ---------------------
+    
+    //clean up
+    glBindFramebuffer(GL_FRAMEBUFFER,0);
+    if(!depth_texture)
+    {
+      glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    }
+
+
+    // Later ...
+    /*
+    glActiveTexture(GL_TEXTURE0+0);
+    glBindTexture(GL_TEXTURE_2D,tex_id);
+    if(depth_texture)
+    {
+      glActiveTexture(GL_TEXTURE0+1);
+      glBindTexture(GL_TEXTURE_2D,d_id);
+    }*/
+
+    
+
+    glUseProgram(0);
+}
+
+
     
 
 void NetParam::vizBoundaryEdges(Eigen::MatrixXd& edge_begs, Eigen::MatrixXd& edge_ends) const {
@@ -672,17 +911,84 @@ std::vector<std::vector<int>> NetParam::nearestFibers(const Eigen::RowVector2f& 
     }
 
 
-    std::cout << "SELECTED FIBERS:" << std::endl;
-    std::cout << "U:" << selected_fibers[0][0] << " " <<  selected_fibers[0][1] << std::endl;
-    std::cout << "V:" << selected_fibers[1][0] << " " <<  selected_fibers[1][1] << std::endl;
+    bool show_selected_id = false;
+    if (show_selected_id){
+        std::cout << "SELECTED FIBERS:" << std::endl;
+        std::cout << "U:" << selected_fibers[0][0] << " " <<  selected_fibers[0][1] << std::endl;
+        std::cout << "V:" << selected_fibers[1][0] << " " <<  selected_fibers[1][1] << std::endl;
+    }
 
     return selected_fibers;
 }
 
 void NetParam::adjustVertices(){
+    //computeFibers();
+    Eigen::MatrixXf V_2d_new = V_2d_;
+    // f romRenderToInitCoords(V_2d_new);
+    fiber_dist = computeFibersDistortion(); // TODO do not recompute if not needed?
+    //fiber_dist[1] = Eigen::VectorXd::Ones(fiber_dist[1].rows());
+
+    for (int v_id=0; v_id<V_2d_.rows(); v_id++){
+        // Find 4 closest fibers
+        
+        std::vector<std::vector<int>> fibs = nearestFibers(V_2d_.row(v_id));
+
+        std::cout << fibs[0][0] << " " << fibs[0][1] << " " << fibs[1][0] << " " << fibs[1][1] << " " << std::endl;
+
+        for (int axis=0; axis<2; axis++){
+
+            //if (axis == 1) continue; // TEST 
+
+            float off_axis = 0;
+            int valid_fibs = 0;
+
+            for (int i: fibs[axis]){
+                if (i < 0) continue;
+                valid_fibs ++;
+                float t1 = V_2d_(v_id, (axis+1) % 2);
+                float f1 = fiber_begs_list[axis](i, (axis+1) % 2);
+                float f2 = fiber_ends_list[axis](i, (axis+1) % 2);
+                float m = (f1 + f2) / 2.0;
+                float d = t1 - m;
+
+                // less weight when far on axis. Assumes we're at fiber scale
+                float coeff = 1.0 - std::fabs(V_2d_(v_id, axis) - fiber_begs_list[axis](i, axis));
+                
+                if (t1 < f1 || t1 > f2) std::cout << "ERROR: vertex out of fiber range" << std::endl;
+                if (coeff < 0 || coeff > 1) std::cout << "ERROR: invalid coeff, are we at fiber scale?" << std::endl;
+                std::cout << "fiber range " << f1 << " -> " << t1 << " -> " << f2 << std::endl;
+                std::cout << "fiber_dist[axis](i) " << fiber_dist[axis](i) << std::endl;
+                off_axis = coeff * d * (static_cast<float>(fiber_dist[axis](i)) - 1.0);
+                
+            }
+
+            std::cout << "off " << off_axis << std::endl;
+            std::cout << "valid_fibs " << valid_fibs << std::endl;
+
+            if (valid_fibs == 0) continue;
+            off_axis /= static_cast<float>(valid_fibs);
+
+            V_2d_new(v_id, (axis+1)%2) += off_axis;
+        }
+        
+
+    }
+
+    // f romInitToRenderCoords(V_2d_new);
+    V_2d_ = V_2d_new;
+
+    // overwrite data that is now invalid
+    fiber_begs_list = {}; 
+    fiber_ends_list = {}; 
+    fiber_dist = {};
+}
+
+/*void NetParam::adjustVertices(){
 
     Eigen::MatrixXf V_2d_new = V_2d_;
+    // f romRenderToInitCoords(V_2d_new);
     fiber_dist = computeFibersDistortion(); // TODO do not recompute if not needed?
+    fiber_dist[1] = Eigen::VectorXd::Ones(fiber_dist[1].rows());
 
     for (int v_id=0; v_id<V_2d_.rows(); v_id++){
         // Find 4 closest fibers
@@ -701,22 +1007,28 @@ void NetParam::adjustVertices(){
                 float f2 = fiber_ends_list[axis](i, (axis+1) % 2);
                 float m = (f1 + f2) / 2.0;
                 float d = t1 - m;
-                off_axis = d * (fiber_dist[axis](i) - 1);
+                std::cout << "fiber_dist[axis](i) " << fiber_dist[axis](i) << std::endl;
+                off_axis = d * (static_cast<float>(fiber_dist[axis](i)) - 1.0);
+                
             }
 
-            if (valid_fibs == 0) continue;
-            off_axis /= valid_fibs;
+            std::cout << "off " << off_axis << std::endl;
+            std::cout << "valid_fibs " << valid_fibs << std::endl;
 
-            V_2d_new(v_id, axis) += off_axis;
+            if (valid_fibs == 0) continue;
+            off_axis /= static_cast<float>(valid_fibs);
+
+            V_2d_new(v_id, (axis+1)%2) += off_axis;
         }
         
 
     }
 
+    // f romInitToRenderCoords(V_2d_new);
     V_2d_ = V_2d_new;
 
     // overwrite data that is now invalid
     fiber_begs_list = {}; 
     fiber_ends_list = {}; 
     fiber_dist = {};
-}
+}*/

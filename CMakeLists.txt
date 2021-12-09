@@ -8,6 +8,12 @@ add_definitions(-DIGL_VIEWER_VIEWER_QUIET)
 
 add_subdirectory(lib/libigl)
 
+## Directional
+include_directories(lib/Directional/include)
+#add_subdirectory(lib/Directional/tutorial)
+
+## Apps
+
 file(GLOB SRCFILES src/*.cpp)
 add_executable(${PROJECT_NAME} ${SRCFILES} app/flat.cpp)
 target_link_libraries(${PROJECT_NAME} igl::core igl::opengl_glfw igl::png igl::opengl_glfw_imgui igl::triangle)
@@ -30,3 +36,10 @@ target_link_libraries(mccartney_energies igl::opengl_glfw igl::core igl::opengl_
 
 add_executable(crosses app/crosses.cpp)
 target_link_libraries(crosses igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
+
+add_executable(302_PolyVectors app/302_PolyVectors.cpp)
+target_link_libraries(302_PolyVectors igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
+
+add_executable(map_tex app/map_tex.cpp)
+target_link_libraries(map_tex igl::opengl_glfw igl::core)
+
