@@ -25,5 +25,8 @@ target_link_libraries(render_coords igl::opengl_glfw igl::core)
 add_executable(triangle_energies app/triangle_energies.cpp src/net_param.cpp)
 target_link_libraries(triangle_energies igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
 
+add_executable(mccartney_energies app/mccartney_energies.cpp src/net_param.cpp)
+target_link_libraries(mccartney_energies igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png)
+
 add_executable(crosses app/crosses.cpp)
 target_link_libraries(crosses igl::opengl_glfw igl::core igl::opengl_glfw_imgui)

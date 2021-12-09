@@ -16,6 +16,8 @@ public:
     void initializeRendering();
     void render();
     void freeRenderingBuffers();
+    void alternativeRenderingAttempt(float start_u, float start_v, float measure_length);
+    void otherRenderingAttempt(float start_u, float start_v, float measure_length);
 
     void computeFibers();
 
@@ -25,9 +27,14 @@ public:
     double measureFiber(const Eigen::RowVector2d& start, const Eigen::RowVector2d& end) const;
     double simpleMeasureFiber(const Eigen::RowVector2f& start, const Eigen::RowVector2f& end) const ;
 
-    // 2D mesh is in [-1, 1] for rendering, this function converts back to initial coords
-    // Note: we could keep normal coords and just send min/max to shader instead
-    void fromInitToRenderCoords(Eigen::MatrixXf& points) const;
+    // Different scales needed:
+    // 1) 2D mesh is in [-1, 1]^2 for rendering (Render coords)
+    // 2) 2D mesh such that fibers lie on integer coordinates
+    // 3) Actual input size
+    //
+    // We assume 3) is already like 2), and keep it stored like this
+    
+    void fromInitToRenderCoords(Eigen::MatrixXf& points) const; // Note: we could keep normal coords and just send min/max to shader instead
     void fromRenderToInitCoords(Eigen::MatrixXf& points) const;
     void fromRenderToInitCoords(Eigen::MatrixXd& points) const;
 
