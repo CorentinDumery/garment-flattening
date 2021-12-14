@@ -6,8 +6,15 @@
 #include <igl/readOBJ.h>
 #include <igl/png/readPNG.h>
 
+//#define COMP_WITH_NET_PARAM
+#ifdef COMP_WITH_NET_PARAM
 #include "net_param.h"
+#endif
+
 #include "mccartney.h"
+#include "procustes.h"
+
+igl::opengl::glfw::Viewer viewer; // TODO MOVE
 
 void printMatStats(std::string name, const Eigen::VectorXd& mat){
     std::cout << name << ": " <<  mat.minCoeff() << " -> " << mat.maxCoeff() << " (avg " << mat.mean() << ")"  << std::endl;
@@ -31,15 +38,121 @@ Eigen::MatrixXd fromVectorToColors(const Eigen::VectorXd& vector){
     colors.col(2) = 1.0 - adjusted.array();
 
     return colors;
-} 
+}
+
+Eigen::VectorXd paramLocalGlobal(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
+                      Eigen::MatrixXd& V_2d, int viz_axis_error=2){
+
+    auto makeTriPoints = [](const Eigen::MatrixXd V, const Eigen::MatrixXi F, int f_id){
+        Eigen::MatrixXd p(3,3);
+        p.row(0) = V.row(F(f_id,0));
+        p.row(1) = V.row(F(f_id,1));
+        p.row(2) = V.row(F(f_id,2));
+        return p;
+    };
+    
+    // Compute ideal rotations per triangle
+    for (int f_id=0; f_id<F.rows(); f_id++){
+        Eigen::MatrixXd p1 = makeTriPoints(V_2d, F, f_id);
+        Eigen::MatrixXd p2_temp(3,3), p2(3,3);
+        p2_temp = makeTriPoints(V_3d, F, f_id);
+        p2 = move3Dto2D(p2_temp);
+        
+        Eigen::MatrixXd R_est;
+        Eigen::VectorXd T_est;
+        procustes(p1, p2, R_est, T_est);
+
+        std::cout << R_est << std::endl << std::endl;
+    }
+
+    Eigen::VectorXd energy_u, energy_v;
+    energy_u = Eigen::VectorXd::Zero(F.rows());
+    energy_v = Eigen::VectorXd::Zero(F.rows());
+
+    for (int f_id=0; f_id<F.rows(); f_id++){
+        Eigen::MatrixXd p1 = makeTriPoints(V_2d, F, f_id);
+        Eigen::MatrixXd p2_temp(3,3), p2(3,3);
+        p2_temp = makeTriPoints(V_3d, F, f_id);
+        p2 = move3Dto2D(p2_temp);
+        
+
+        Eigen::MatrixXd R_est;
+        Eigen::VectorXd T_est;
+        procustes(p1, p2, R_est, T_est);
+
+        /*Eigen::MatrixXd p2_r;
+        p2_r = p2.transpose();
+        p2_r = p2_r.colwise() - T_est;
+        p2_r = (R_est.transpose() * p2_r);*/
+        //p2_r.transpose();
+
+        //p2_r = p2; // TODO REMOVE !!!!!!!!!!!!!!!
+
+        Eigen::MatrixXd p2_rt, p2_r;
+        Eigen::MatrixXd p2t = p2.transpose();
+        p2_rt = p2t.colwise() - T_est;
+        p2_rt = (R_est.transpose() * p2_rt);
+        p2_r = p2_rt.transpose();
+        
+        //viewer.data().add_points(p1, Eigen::RowVector3d(1.0, 1.0, 0.0));
+        //viewer.data().add_points(p2_r, Eigen::RowVector3d(0.0, 1.0, 1.0));
+
+        double ABu = (p1.row(1) - p1.row(0))(0);
+        double ApBpu = (p2_r.row(1) - p2_r.row(0))(0);
+        double ACu = (p1.row(2) - p1.row(0))(0);
+        double ApCpu = (p2_r.row(2) - p2_r.row(0))(0);
+
+        double ABv = (p1.row(1) - p1.row(0))(1);
+        double ApBpv = (p2_r.row(1) - p2_r.row(0))(1);
+        double ACv = (p1.row(2) - p1.row(0))(1);
+        double ApCpv = (p2_r.row(2) - p2_r.row(0))(1);
+
+        double Eu = std::pow(ABu - ApBpu, 2) 
+                  + std::pow(ACu - ApCpu, 2);
+        double Ev = std::pow(ABv - ApBpv, 2) 
+                  + std::pow(ACv - ApCpv, 2);
+
+        energy_v(f_id) = Eu;
+        energy_u(f_id) = Ev;
+
+        //break;
+    }
+
+    if (viz_axis_error == 0){
+        return energy_u;
+    }
+    else if (viz_axis_error == 1){
+        return energy_v;
+    }
+    else {
+        return energy_u + energy_v;
+    }    
+}
 
 int main(int argc, char *argv[]){
 
     Eigen::MatrixXd V_3d, V_2d;
     Eigen::MatrixXi F, F0;
 
+    /*
     igl::readOBJ("../data/dress_front_cut.obj", V_3d, F0);
-    igl::readOBJ("../data/flat_dress.obj", V_2d, F);
+    igl::readOBJ("../data/flat_dress.obj", V_2d, F);//*/
+
+
+    /*
+    igl::readOBJ("../data/semisphere0.obj", V_3d, F0);
+    igl::readOBJ("../data/semisphere0_flat_halfbad.obj", V_2d, F);//*/
+
+
+    //*
+    igl::readOBJ("../data/cross.obj", V_3d, F0);
+    igl::readOBJ("../data/cross_flat_bad.obj", V_2d, F);
+    Eigen::VectorXd temp = V_3d.col(2);
+    V_3d.col(2) = V_3d.col(1);
+    V_3d.col(1) = temp;
+    temp = V_2d.col(2);
+    V_2d.col(2) = V_2d.col(1);
+    V_2d.col(1) = temp; //*/
 
     double scale_f = 2.0;
     V_3d *= scale_f;
@@ -47,8 +160,6 @@ int main(int argc, char *argv[]){
 
     Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> R,G,B,A;
     igl::png::readPNG("../data/grid.png",R,G,B,A);
-
-
 
     if (F.maxCoeff() != F0.maxCoeff()){
         std::cout << "ERROR: meshes don't match" << std::endl;
@@ -81,7 +192,7 @@ int main(int argc, char *argv[]){
 
     // --- VISUALIZATION ---
 
-    igl::opengl::glfw::Viewer viewer;
+    
     viewer.data().set_mesh(V_3d, F);
 
     viewer.data().set_uv(V_2d);
@@ -121,6 +232,9 @@ int main(int argc, char *argv[]){
             if (ImGui::Button("2D",  ImVec2((w - p) / 2.f, 0))){
                 viewer.data().set_mesh(V_2d, F);
             }
+
+            make_checkbox("Show mesh", viewer.data().show_lines);
+            make_checkbox("Show texture", viewer.data().show_texture);
             
             if (ImGui::CollapsingHeader("Colors", ImGuiTreeNodeFlags_DefaultOpen)){
                 if (ImGui::Button("Strain U colors", ImVec2(-1,0))){
@@ -142,6 +256,7 @@ int main(int argc, char *argv[]){
 
             ImGui::Separator();
 
+            #ifdef COMP_WITH_NET_PARAM
             if (ImGui::Button("Viz net", ImVec2(-1,0))){
 
                 // Per triangle net transported from UV to 3D.
@@ -174,6 +289,24 @@ int main(int argc, char *argv[]){
                                             Eigen::RowVector3d(0.0, 0.0, 1.0));
                 }
             }
+            #endif
+
+            if (ImGui::Button("My Stretch U", ImVec2(-1, 0))){
+                Eigen::VectorXd E = paramLocalGlobal(V_3d, F, V_2d, 0);
+                viewer.data().set_colors(fromVectorToColors(E));
+            }
+
+            if (ImGui::Button("My Stretch V", ImVec2(-1, 0))){
+                Eigen::VectorXd E = paramLocalGlobal(V_3d, F, V_2d, 1);
+                viewer.data().set_colors(fromVectorToColors(E));
+            }
+
+            if (ImGui::Button("Sum", ImVec2(-1, 0))){
+                Eigen::VectorXd E = paramLocalGlobal(V_3d, F, V_2d, 2);
+                viewer.data().set_colors(fromVectorToColors(E));
+            }
+
+            ImGui::SliderFloat("Light factor", &viewer.core().lighting_factor, 0.0f, 5.0f, "%.3f");
             
             ImGui::End();
         }

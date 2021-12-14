@@ -85,7 +85,7 @@ int main(int argc, char *argv[]){
         V_2d = V_2di;
         V_2d.rowwise() -= V_2di.row(0); 
 
-        V_2d(1, 0) += control_u; // TODO should be V_3d?
+        V_2d(1, 0) += control_u; // should be V_3d?
         V_2d(2, 0) += control_u;  
         V_2d(2, 1) += control_v;
 

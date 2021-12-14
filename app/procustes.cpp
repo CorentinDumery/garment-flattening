@@ -4,41 +4,18 @@
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <cmath>
 
-void procustes(const Eigen::MatrixXd& line1,
-               const Eigen::MatrixXd& line2,
-               Eigen::Matrix2d& R_est,
-               Eigen::Vector2d& T_est){
-
-    // https://igl.ethz.ch/projects/ARAP/svd_rot.pdf
-    // https://math.stackexchange.com/questions/849217/estimate-rotation-and-translation-from-two-sets-of-points-in-different-coordinat
-    // https://en.wikipedia.org/wiki/Procrustes_analysis
-
-    Eigen::MatrixXd line1t = line1.transpose();
-    Eigen::MatrixXd line2t = line2.transpose();
-
-    Eigen::Vector2d pb = line1t.rowwise().mean();
-    Eigen::Vector2d qb = line2t.rowwise().mean();
-
-    Eigen::MatrixXd X = (line1t.colwise() - pb);
-    Eigen::MatrixXd Y = (line2t.colwise() - qb);
-    Eigen::MatrixXd S = X * Y.transpose();
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(S, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    Eigen::MatrixXd sigma = Eigen::MatrixXd::Identity(svd.matrixU().cols(), svd.matrixV().cols());
-    sigma(sigma.rows() - 1, sigma.cols() - 1) = -(svd.matrixV() * svd.matrixU().transpose()).determinant();
-    R_est = svd.matrixV() * sigma * svd.matrixU().transpose();
-    T_est = qb - R_est * pb;
-}
+#include "procustes.h"
 
 void forceReflectability(Eigen::MatrixXd& line1,
                          Eigen::MatrixXd& line2){
 
-    Eigen::Matrix2d R_est;
-    Eigen::Vector2d T_est;
+    Eigen::MatrixXd R_est;
+    Eigen::VectorXd T_est;
     procustes(line1, line2, R_est, T_est);
 
     Eigen::MatrixXd line1t = line1.transpose();
     Eigen::MatrixXd line2t = line2.transpose();
-    Eigen::MatrixXd line3 = line1t;
+    Eigen::MatrixXd line3;
 
     /* FROM 2 TO 1 */
     line3 = line2t.colwise() - T_est;
@@ -110,13 +87,22 @@ int main(int argc, char *argv[]){
     
     Eigen::MatrixXd line3, line3t;
     auto compLine3 = [&](){
-        Eigen::Matrix2d R_est;
-        Eigen::Vector2d T_est;
+        Eigen::MatrixXd R_est;
+        Eigen::VectorXd T_est;
         procustes(line1, line2, R_est, T_est);
+        
+        /*
         Eigen::MatrixXd line2t = line2.transpose();
         line3t = line2t.colwise() - T_est;
         line3t = (R_est.transpose() * line3t);
         line3 = line3t.transpose();
+        //*/
+
+        //*
+        Eigen::MatrixXd line3t = line1.transpose();
+        line3t = (R_est * line3t);
+        line3t = line3t.colwise() + T_est;
+        line3 = line3t.transpose();//*/
     };
 
     compLine3();

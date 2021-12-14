@@ -2,6 +2,7 @@
 #include <Eigen/Core>
 #include <igl/barycentric_coordinates.h>
 #include "utils.h"
+#include "procustes.h"
 
 Eigen::MatrixXd computeMcCartneyErrors(const Eigen::MatrixXd& V_2di, 
                                        const Eigen::MatrixXd& V_3di,
@@ -14,24 +15,7 @@ Eigen::MatrixXd computeMcCartneyErrors(const Eigen::MatrixXd& V_2di,
     Eigen::MatrixXd V_3d(3,3); // We'll move V_3di to align with V_2d
     Eigen::MatrixXd V_2d = V_2di;
     V_2d.rowwise() -= V_2d.row(0);
-
-    // First, move 3D triangle to 2D plane
-    // V_3d: put A in (0,0), B in (0, |AB|), and find C 
-    double r0 = (V_3di.row(1) - V_3di.row(0)).norm();
-    double r1 = (V_3di.row(2) - V_3di.row(0)).norm();
-    double r2 = (V_3di.row(2) - V_3di.row(1)).norm();
-    V_3d.row(0) = Eigen::RowVector3d(0, 0, 0);
-    V_3d.row(1) = Eigen::RowVector3d(r0, 0, 0);
-    double CAB_angle = std::acos((r0*r0 + r1*r1 - r2*r2)/(2*r0*r1));
-    double l1 = r1 * std::cos(CAB_angle);
-    double h = l1 * std::tan(CAB_angle);
-    V_3d.row(2) = Eigen::RowVector3d(l1, h, 0);
-
-    if (r0 != (V_3di.row(1) - V_3di.row(0)).norm() // just checking...
-        || r1 != (V_3di.row(2) - V_3di.row(0)).norm()
-        || r2 != (V_3di.row(2) - V_3di.row(1)).norm()){
-        std::cout << "ERROR, flat triangle is different" << std::endl;
-    }
+    V_3d = move3Dto2D(V_3di);
 
     if (V_2d.row(0).maxCoeff() > 0 || V_2d.col(2).maxCoeff() > 0){
         std::cout << "ERROR: violated 2d assumptions" << std::endl;
