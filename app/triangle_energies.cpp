@@ -82,8 +82,10 @@ int main(int argc, char *argv[]){
         viewer.data(id_3d_right).clear_edges();
 
         Eigen::MatrixXd V_2d(3,3);
+        Eigen::MatrixXd V_3d(3,3);
         V_2d = V_2di;
-        V_2d.rowwise() -= V_2di.row(0); 
+        V_3d = V_3di;
+        //V_2d.rowwise() -= V_2di.row(0); 
 
         V_2d(1, 0) += control_u; // should be V_3d?
         V_2d(2, 0) += control_u;  
@@ -95,21 +97,36 @@ int main(int argc, char *argv[]){
                    0, Sv_exp, 0,
                    0,      0, 1;
 
-        shear << 1, 0, 0,
+        /*shear << 1, 0, 0,
                  std::sin(phiv_exp), std::cos(phiv_exp), 0,
+                   0,      0, 1;*/
+
+        shear << 1, std::sin(phiv_exp), 0,
+                 0, std::cos(phiv_exp), 0,
                    0,      0, 1;
 
         shear_bis << 1, shear_u_exp, 0,
                  shear_v_exp, 1, 0,
                    0,      0, 1;
 
-        Eigen::Matrix3d Mcomp = stretch * shear * shear_bis;
-        V_2d = V_2d * Mcomp;
+        Eigen::Matrix3d Mcomp = shear * shear_bis * stretch;
+        //V_2d = V_2d * Mcomp;
+        Eigen::Matrix3d V_2dt, V_3dt;
+        V_2dt = V_2d;
+        V_2dt.transposeInPlace();
+        //V_3dt = V_3d;
+        //V_3dt.transposeInPlace();
+        V_3dt = Mcomp * V_2dt;
+        V_3dt.transposeInPlace();
+        V_3d = V_3dt;
+
+        std::cout << "Mcomp: " << Mcomp << std::endl;
 
 
 
 
-        Eigen::MatrixXd V_3d = computeMcCartneyErrors(V_2d, V_3di, Esu, Esv, Er);
+        //V_3d = computeMcCartneyErrors(V_2d, V_3d, Esu, Esv, Er);
+        computeFrameErrors(V_2d, V_3d, Esu, Esv, Er);
 
 
         NetParam net_param(F, V_3d.cast<float>(), V_2d.cast<float>());
@@ -132,16 +149,16 @@ int main(int argc, char *argv[]){
                                           transportMatrix(V_2d, F, fiber_ends_list[1], V_3d), 
                                           Eigen::RowVector3d(0.0, 0.0, 1.0));
 
-        viewer.data(id_3d_right).add_edges(transportMatrix(V_2d, F, fiber_begs_list[0], V_3di), 
-                                           transportMatrix(V_2d, F, fiber_ends_list[0], V_3di), 
+        viewer.data(id_3d_right).add_edges(transportMatrix(V_2d, F, fiber_begs_list[0], V_3d), 
+                                           transportMatrix(V_2d, F, fiber_ends_list[0], V_3d), 
                                            Eigen::RowVector3d(0.0, 0.0, 1.0));
-        viewer.data(id_3d_right).add_edges(transportMatrix(V_2d, F, fiber_begs_list[1], V_3di), 
-                                           transportMatrix(V_2d, F, fiber_ends_list[1], V_3di), 
+        viewer.data(id_3d_right).add_edges(transportMatrix(V_2d, F, fiber_begs_list[1], V_3d), 
+                                           transportMatrix(V_2d, F, fiber_ends_list[1], V_3d), 
                                            Eigen::RowVector3d(0.0, 0.0, 1.0));
 
         viewer.data(id_2d).set_mesh(V_2d, F);
         viewer.data(id_3d_left).set_mesh(V_3d, F);
-        viewer.data(id_3d_right).set_mesh(V_3di, F);        
+        viewer.data(id_3d_right).set_mesh(V_3d, F);        
     };
 
     //helper function for menu
@@ -169,13 +186,13 @@ int main(int argc, char *argv[]){
                 updateViz();
             }
 
-            if (ImGui::SliderFloat("Stretch horizontally", &control_u, 0, 10*desired_fibers)){
+            /*if (ImGui::SliderFloat("Stretch horizontally", &control_u, 0, 10*desired_fibers)){
                 updateViz();
             }
 
             if (ImGui::SliderFloat("Stretch vertically", &control_v, 0, 10*desired_fibers)){
                 updateViz();
-            }
+            }*/
 
             if (ImGui::SliderFloat("Stretch U", &Su_exp, 0.01, 2)){
                 updateViz();
@@ -185,22 +202,20 @@ int main(int argc, char *argv[]){
                 updateViz();
             }
 
-            if (ImGui::SliderFloat("Phi_v (Shear)", &phiv_exp, -3.14, 3.14)){
+            if (ImGui::SliderFloat("Phi_v (Shear)", &phiv_exp, -3.14/2.0, 3.14/2.0)){
                 updateViz();
             }
 
             ImGui::Separator();
 
-            if (ImGui::SliderFloat("Shear U", &shear_u_exp, -1.0, 1.0)){
+            /*if (ImGui::SliderFloat("Shear U", &shear_u_exp, -1.0, 1.0)){
                 updateViz();
             }
             
             if (ImGui::SliderFloat("Shear V", &shear_v_exp, -1.0, 1.0)){
                 updateViz();
             }
-
-
-            ImGui::Separator();
+            ImGui::Separator();*/
 
             float draw_height = 200.0;
             ImVec2 size(ImGui::GetContentRegionAvailWidth(), draw_height);
@@ -215,7 +230,7 @@ int main(int argc, char *argv[]){
             float test3 = 20.0;
             float max_val = 5.0;
 
-            std::vector<float> values = {Esu, Esv, Er};
+            std::vector<double> values = {Esu, Esv, Er};
 
             for (int i=0; i<3; i++){
                 int err_viz = std::max(255 - static_cast<int>(255.0 * values[i] / max_val), 0);

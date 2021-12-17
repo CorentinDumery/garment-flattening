@@ -13,6 +13,7 @@
 
 #include "mccartney.h"
 #include "procustes.h"
+#include "localglobal.h"
 
 igl::opengl::glfw::Viewer viewer; // TODO MOVE
 
@@ -43,16 +44,10 @@ Eigen::MatrixXd fromVectorToColors(const Eigen::VectorXd& vector){
 Eigen::VectorXd paramLocalGlobal(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
                       Eigen::MatrixXd& V_2d, int viz_axis_error=2){
 
-    auto makeTriPoints = [](const Eigen::MatrixXd V, const Eigen::MatrixXi F, int f_id){
-        Eigen::MatrixXd p(3,3);
-        p.row(0) = V.row(F(f_id,0));
-        p.row(1) = V.row(F(f_id,1));
-        p.row(2) = V.row(F(f_id,2));
-        return p;
-    };
+    
     
     // Compute ideal rotations per triangle
-    for (int f_id=0; f_id<F.rows(); f_id++){
+    /*for (int f_id=0; f_id<F.rows(); f_id++){
         Eigen::MatrixXd p1 = makeTriPoints(V_2d, F, f_id);
         Eigen::MatrixXd p2_temp(3,3), p2(3,3);
         p2_temp = makeTriPoints(V_3d, F, f_id);
@@ -63,7 +58,7 @@ Eigen::VectorXd paramLocalGlobal(const Eigen::MatrixXd& V_3d, const Eigen::Matri
         procustes(p1, p2, R_est, T_est);
 
         std::cout << R_est << std::endl << std::endl;
-    }
+    }*/
 
     Eigen::VectorXd energy_u, energy_v;
     energy_u = Eigen::VectorXd::Zero(F.rows());
@@ -134,7 +129,7 @@ int main(int argc, char *argv[]){
     Eigen::MatrixXd V_3d, V_2d;
     Eigen::MatrixXi F, F0;
 
-    /*
+    //*
     igl::readOBJ("../data/dress_front_cut.obj", V_3d, F0);
     igl::readOBJ("../data/flat_dress.obj", V_2d, F);//*/
 
@@ -144,7 +139,7 @@ int main(int argc, char *argv[]){
     igl::readOBJ("../data/semisphere0_flat_halfbad.obj", V_2d, F);//*/
 
 
-    //*
+    /*
     igl::readOBJ("../data/cross.obj", V_3d, F0);
     igl::readOBJ("../data/cross_flat_bad.obj", V_2d, F);
     Eigen::VectorXd temp = V_3d.col(2);
@@ -154,7 +149,29 @@ int main(int argc, char *argv[]){
     V_2d.col(2) = V_2d.col(1);
     V_2d.col(1) = temp; //*/
 
-    double scale_f = 2.0;
+
+    /*
+    V_2d.resize(4, 3);
+    V_3d.resize(4, 3);
+    F.resize(2, 3);
+
+    V_2d <<  0,   0, 0,
+           1.0,   0, 0,
+             0, 1.0, 0,
+           1.0, 1.5, 0;
+
+    V_3d <<  0,   0, 0,
+           1.0,   0, 0,
+             0, 1.0, 0,
+           1.0, 1.0, 0;
+
+    F << 0, 1, 2,
+         1, 3, 2;
+
+    F0 = F;
+    //*/
+
+    double scale_f = 1.0;
     V_3d *= scale_f;
     V_2d *= scale_f;
 
@@ -306,8 +323,17 @@ int main(int argc, char *argv[]){
                 viewer.data().set_colors(fromVectorToColors(E));
             }
 
+
             ImGui::SliderFloat("Light factor", &viewer.core().lighting_factor, 0.0f, 5.0f, "%.3f");
             
+            ImGui::Separator();
+
+            if (ImGui::Button("Local global test", ImVec2(-1, 0))){
+                V_2d = localGlobal(V_2d, V_3d, F);
+                std::cout << V_2d << std::endl;
+                viewer.data().set_mesh(V_2d, F);
+            }
+
             ImGui::End();
         }
     
