@@ -5,6 +5,7 @@
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/readOBJ.h>
 #include <igl/png/readPNG.h>
+#include <igl/edges.h>
 
 //#define COMP_WITH_NET_PARAM
 #ifdef COMP_WITH_NET_PARAM
@@ -171,9 +172,12 @@ int main(int argc, char *argv[]){
     F0 = F;
     //*/
 
-    double scale_f = 1.0;
+    double scale_f = 2.0;
     V_3d *= scale_f;
     V_2d *= scale_f;
+
+    Eigen::MatrixXi E;
+    igl::edges(F, E);
 
     Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> R,G,B,A;
     igl::png::readPNG("../data/grid.png",R,G,B,A);
@@ -254,7 +258,7 @@ int main(int argc, char *argv[]){
             make_checkbox("Show texture", viewer.data().show_texture);
             
             if (ImGui::CollapsingHeader("Colors", ImGuiTreeNodeFlags_DefaultOpen)){
-                if (ImGui::Button("Strain U colors", ImVec2(-1,0))){
+                /*if (ImGui::Button("Strain U colors", ImVec2(-1,0))){
                     viewer.data().set_colors(fromVectorToColors(strain_u));
                 }
 
@@ -264,11 +268,29 @@ int main(int argc, char *argv[]){
 
                 if (ImGui::Button("Shear colors", ImVec2(-1,0))){
                     viewer.data().set_colors(fromVectorToColors(shear));
-                }
+                }*/
 
                 if (ImGui::Button("White", ImVec2(-1,0))){
                     viewer.data().set_colors(Eigen::RowVector3d(1.0, 1.0, 1.0));
                 }
+
+                if (ImGui::Button("My Stretch U", ImVec2(-1, 0))){
+                    Eigen::VectorXd E = paramLocalGlobal(V_3d, F, V_2d, 0);
+                    viewer.data().set_colors(fromVectorToColors(E));
+                }
+
+                if (ImGui::Button("My Stretch V", ImVec2(-1, 0))){
+                    Eigen::VectorXd E = paramLocalGlobal(V_3d, F, V_2d, 1);
+                    viewer.data().set_colors(fromVectorToColors(E));
+                }
+
+                if (ImGui::Button("Sum", ImVec2(-1, 0))){
+                    Eigen::VectorXd E = paramLocalGlobal(V_3d, F, V_2d, 2);
+                    viewer.data().set_colors(fromVectorToColors(E));
+                }
+
+                ImGui::SliderFloat("Light factor", &viewer.core().lighting_factor, 0.0f, 5.0f, "%.3f");
+                
             }
 
             ImGui::Separator();
@@ -308,30 +330,15 @@ int main(int argc, char *argv[]){
             }
             #endif
 
-            if (ImGui::Button("My Stretch U", ImVec2(-1, 0))){
-                Eigen::VectorXd E = paramLocalGlobal(V_3d, F, V_2d, 0);
-                viewer.data().set_colors(fromVectorToColors(E));
-            }
-
-            if (ImGui::Button("My Stretch V", ImVec2(-1, 0))){
-                Eigen::VectorXd E = paramLocalGlobal(V_3d, F, V_2d, 1);
-                viewer.data().set_colors(fromVectorToColors(E));
-            }
-
-            if (ImGui::Button("Sum", ImVec2(-1, 0))){
-                Eigen::VectorXd E = paramLocalGlobal(V_3d, F, V_2d, 2);
-                viewer.data().set_colors(fromVectorToColors(E));
-            }
-
-
-            ImGui::SliderFloat("Light factor", &viewer.core().lighting_factor, 0.0f, 5.0f, "%.3f");
             
             ImGui::Separator();
 
             if (ImGui::Button("Local global test", ImVec2(-1, 0))){
-                V_2d = localGlobal(V_2d, V_3d, F);
-                std::cout << V_2d << std::endl;
-                viewer.data().set_mesh(V_2d, F);
+                V_2d = localGlobal(V_2d, V_3d, F, E);
+                //viewer.data().set_mesh(V_2d, F);
+                viewer.data().set_uv(V_2d);
+                //Eigen::VectorXd E = paramLocalGlobal(V_3d, F, V_2d, 0);
+                //viewer.data().set_colors(fromVectorToColors(E));
             }
 
             ImGui::End();

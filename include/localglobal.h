@@ -8,11 +8,32 @@
 // One of 
 //#include <Eigen/SparseCholesky>
 //#include <Eigen/SparseQR>
-#include <Eigen/IterativeLinearSolvers>
+#include <Eigen/IterativeLinearSolvers> // https://forum.kde.org/viewtopic.php?f=74&t=125165
 
+//#define LOCALGLOBAL_DEBUG
+#define LOCALGLOBAL_TIMING
+//#define LOCALGLOBAL_DEBUG_SMALL // print full matrices, should be small
+
+#ifdef LOCALGLOBAL_TIMING
+#include <chrono>
+using std::chrono::steady_clock;
+using std::chrono::duration_cast;
+using std::chrono::microseconds;
+#endif
+
+// Interesting discussion on Eigen performance for LSCM:
 // https://forum.kde.org/viewtopic.php?f=74&t=125165
 
-int next_equation_id = 0;
+int next_equation_id = 0; // TODO put somewhere else
+
+Eigen::VectorXd vertices2dToVector(const Eigen::MatrixXd& V){
+    Eigen::VectorXd res(2 * V.rows());
+    for (int i=0; i<V.rows(); i++){
+        res(2 * i) = V(i,0);
+        res(2 * i + 1) = V(i,1);
+    }
+    return res;
+}
 
 void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
                            const Eigen::MatrixXi& F, int f_id,
@@ -77,8 +98,8 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
 }
 
 void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
-                      const Eigen::MatrixXi& F, Eigen::SparseMatrix<double>& A,
-                      Eigen::VectorXd& b){
+                      const Eigen::MatrixXi& F, const Eigen::MatrixXi& E,
+                      Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b){
 
     // Sparse conventions:
     // we have n target equations
@@ -86,7 +107,8 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
     // vertex i has its u coord in x(2*i) and its v coord in x(2*i+1)
     // M(equation, 2*v_id);
 
-    int n_equations = 6 * F.rows() + 2;
+    next_equation_id = 0; // TODO REMOVE GLOBAL
+    int n_equations = 6 * F.rows();// + 2;
 
     std::vector<Eigen::Triplet<double>> triplet_list; // Perf: get rid of std::vector
     std::vector<double> target_vector; // Perf: get rid of std::vector
@@ -95,12 +117,13 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
         equationsFromTriangle(V_2d, V_3d, F, f_id, triplet_list, target_vector);
     }
 
+    /* constrain in 0,0, only needed for non iterative methods?
     triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 0, 1.0));
     next_equation_id ++;
     triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 1, 1.0));
     next_equation_id ++;
     target_vector.push_back(0);
-    target_vector.push_back(0);
+    target_vector.push_back(0);*/
 
     //b = Eigen::VectorXd(target_vector.size(), target_vector.data()); // Perf: get rid of std::vector
     b.resize(target_vector.size());
@@ -108,57 +131,102 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
         b(i) = target_vector[i];
     }
 
+    #ifdef LOCALGLOBAL_DEBUG
     std::cout << "n_equations: " << n_equations << std::endl;
     std::cout << "next_equation_id: " << next_equation_id << std::endl;
     std::cout << "triplet_list.size(): " << triplet_list.size() << std::endl; 
     std::cout << "target_vector.size(): " << target_vector.size() << std::endl; 
+    #endif
 
-    if (triplet_list.size()/2 != target_vector.size()){
-        std::cout << "ERROR: non matching size in A and b: " << triplet_list.size() << " vs " << target_vector.size() << std::endl;
+    if (n_equations != target_vector.size()){
+        std::cout << "ERROR: n_equations != b.rows(): " << n_equations << " vs " << target_vector.size() << std::endl;
+    }
+
+    if (n_equations != triplet_list.size()/2){// + 1){
+        std::cout << "ERROR: n_equations != triplet_list.size()/2 + 1: " << n_equations << " vs " << triplet_list.size() << std::endl;
     }
 
     A.resize(n_equations, 2*V_2d.rows());
     A.setFromTriplets(triplet_list.begin(), triplet_list.end());
+
+    #ifdef LOCALGLOBAL_DEBUG
+    std::cout << "Sparse matrix computed." << std::endl;
+    #endif
 }
 
-Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F){
+Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d, 
+                            const Eigen::MatrixXi& F, const Eigen::MatrixXi& E){
 
-    std::cout << "Optimizing 2d vertices of size: " << V_2d.rows() << std::endl;
+    #ifdef LOCALGLOBAL_TIMING
+    steady_clock::time_point pre_localglobal = steady_clock::now();
+    #endif
 
     Eigen::SparseMatrix<double> A;
     Eigen::VectorXd b, x;
-    makeSparseMatrix(V_2d, V_3d, F, A, b);
-
-    /*
-    std::cout << "A" << std::endl;
-    std::cout << A << std::endl;
-    std::cout << "b" << std::endl;
-    std::cout << b << std::endl;
-    */
+    makeSparseMatrix(V_2d, V_3d, F, E, A, b);
 
     // solve Ax = b
-    Eigen::SimplicialLDLT <Eigen::SparseMatrix<double>> solver;
-    //Eigen::SimplicialLDLT <Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver;
+    #ifdef LOCALGLOBAL_DEBUG
+    std::cout << "Optimizing 2d vertices of size: " << V_2d.rows() << std::endl;
+    std::cout << "Solver init..." << std::endl;
+    #endif
+
+    //Eigen::SimplicialLDLT <Eigen::SparseMatrix<double>> solver;
+    //Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver(A);
+    Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double>> solver(A);
+    //Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver;
     //solver.setPivotThreshold(0.0f); //better performance if matrix has full rank
-    solver.compute(A);
+    //solver.compute(A);
     if(solver.info() != Eigen::Success) {
         std::cout << "ERROR: decomposition failed" << std::endl;
         //return;
     }
+    //x.setZero();
+    x = vertices2dToVector(V_2d);
+
+    #ifdef LOCALGLOBAL_TIMING
+    steady_clock::time_point pre_solve = steady_clock::now();
+    #endif
+
     x = solver.solve(b);
     if(solver.info() != Eigen::Success) {
         std::cout << "ERROR: solving failed" << std::endl;
         //return;
     }
+
+    #ifdef LOCALGLOBAL_TIMING
+    steady_clock::time_point post_solve = steady_clock::now();
+    #endif
+
+    #ifdef LOCALGLOBAL_DEBUG
     std::cout << "Linear system success: " << std::endl;
     std::cout << "x.rows(): " << x.rows() << std::endl;
-    //std::cout << x.topRows(10) << std::endl;
-    //std::cout << x << std::endl;
+    #endif
+
+    #ifdef LOCALGLOBAL_DEBUG_SMALL
+    std::cout << "A" << std::endl;
+    std::cout << A << std::endl;
+    std::cout << "b" << std::endl;
+    std::cout << b << std::endl;
+    std::cout << x.topRows(10) << std::endl;
+    std::cout << x << std::endl;
+    #endif
 
     Eigen::MatrixXd res = Eigen::MatrixXd::Zero(V_2d.rows(), 3);
     for (int i=0; i<x.rows()/2; i++){
         res(i, 0) = x(2 * i); 
         res(i, 1) = x(2 * i + 1);
     }
+
+    #ifdef LOCALGLOBAL_TIMING
+    steady_clock::time_point post_localglobal = steady_clock::now();
+    int pre_time = duration_cast<microseconds>(pre_solve - pre_localglobal).count();
+    int solve_time = duration_cast<microseconds>(post_solve - pre_solve).count();
+    int post_time = duration_cast<microseconds>(post_localglobal - post_solve).count();
+    std::cout << "Precomp time : " << pre_time << " [µs]" << std::endl;
+    std::cout << "Solving time : " << solve_time << " [µs]" << std::endl;
+    std::cout << "Postcomp time: " << post_time << " [µs]" << std::endl << std::endl;
+    #endif
+
     return res;
 }
