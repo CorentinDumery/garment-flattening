@@ -35,12 +35,23 @@ Eigen::VectorXd vertices2dToVector(const Eigen::MatrixXd& V){
     return res;
 }
 
+double computeVectorAxisWeight(const Eigen::RowVector3d& vec, int axis){
+    if (axis != 0 && axis != 1){
+        std::cout << "ERROR: invalid axis in computeVectorAxisWeight" << std::endl;
+    }
+
+    double sigma = 0.3;
+    double proj = std::fabs(vec(axis)) / vec.norm();
+    return std::exp(-(1 - proj) / sigma); 
+} 
+
 void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
                            const Eigen::MatrixXi& F, int f_id,
                            std::vector<Eigen::Triplet<double>>& triplet_list,
-                           std::vector<double>& target_vector){
+                           std::vector<double>& target_vector,
+                           std::vector<Eigen::Triplet<double>>& weight_triplets){
     // each triangle gives us 6 equations:
-    // each edge gives us one eq for U and one for V (TODO DONT DO EDGES TWICE?)
+    // each edge gives us one eq for U and one for V (TODO DONT DO EDGES TWICE?) (actually I think we have to)
 
     Eigen::MatrixXd V_tri_2d = makeTriPoints(V_2d, F, f_id); // Could be removed for perf
     Eigen::MatrixXd V_tri_3d = makeTriPoints(V_3d, F, f_id);
@@ -52,7 +63,7 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
 
     // TODO check assumptions
 
-    Eigen::MatrixXd p1 = V_tri_2d; // TODO get rid of extra notation
+    //Eigen::MatrixXd p1 = V_tri_2d; // TODO get rid of extra notation
     Eigen::MatrixXd p2 = V_tri_3d;
 
     Eigen::MatrixXd p2_rt, p2_r;
@@ -60,22 +71,6 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     p2_rt = p2t.colwise() - T_est;
     p2_rt = (R_est.transpose() * p2_rt);
     p2_r = p2_rt.transpose();
-    
-
-    double ABu = (p1.row(1) - p1.row(0))(0);
-    double ApBpu = (p2_r.row(1) - p2_r.row(0))(0);
-    double ACu = (p1.row(2) - p1.row(0))(0);
-    double ApCpu = (p2_r.row(2) - p2_r.row(0))(0);
-
-    double ABv = (p1.row(1) - p1.row(0))(1);
-    double ApBpv = (p2_r.row(1) - p2_r.row(0))(1);
-    double ACv = (p1.row(2) - p1.row(0))(1);
-    double ApCpv = (p2_r.row(2) - p2_r.row(0))(1);
-
-    double Eu = std::pow(ABu - ApBpu, 2) 
-                + std::pow(ACu - ApCpu, 2);
-    double Ev = std::pow(ABv - ApBpv, 2) 
-                + std::pow(ACv - ApCpv, 2);
 
     std::vector<std::pair<int, int>> edges = {std::make_pair(0,1), std::make_pair(0,2), std::make_pair(1,2)}; 
 
@@ -87,19 +82,22 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, edge.second), 1.0));
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, edge.first), -1.0));
         target_vector.push_back(target_u);
+        weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, computeVectorAxisWeight(Bp - Ap, 0))); // TODO SET WEIGHTS
         next_equation_id ++;
 
         double target_v = (Bp - Ap)(1);
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, edge.second) + 1, 1.0));
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, edge.first) + 1, -1.0));
         target_vector.push_back(target_v);
+        weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, computeVectorAxisWeight(Bp - Ap, 1)));
         next_equation_id ++;
     }
 }
 
 void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
                       const Eigen::MatrixXi& F, const Eigen::MatrixXi& E,
-                      Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b){
+                      Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b,
+                      Eigen::SparseMatrix<double>& W){
 
     // Sparse conventions:
     // we have n target equations
@@ -113,8 +111,10 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
     std::vector<Eigen::Triplet<double>> triplet_list; // Perf: get rid of std::vector
     std::vector<double> target_vector; // Perf: get rid of std::vector
     triplet_list.reserve(n_equations);
+    std::vector<Eigen::Triplet<double>> weight_triplets; // Perf: get rid of std::vector
+    // TODO PERF: reserve for triplets?
     for (int f_id=0; f_id<F.rows(); f_id++) {
-        equationsFromTriangle(V_2d, V_3d, F, f_id, triplet_list, target_vector);
+        equationsFromTriangle(V_2d, V_3d, F, f_id, triplet_list, target_vector, weight_triplets);
     }
 
     /* constrain in 0,0, only needed for non iterative methods?
@@ -143,11 +143,14 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
     }
 
     if (n_equations != triplet_list.size()/2){// + 1){
-        std::cout << "ERROR: n_equations != triplet_list.size()/2 + 1: " << n_equations << " vs " << triplet_list.size() << std::endl;
+        std::cout << "ERROR: n_equations != triplet_list.size()/2: " << n_equations << " vs " << triplet_list.size() << std::endl;
     }
 
     A.resize(n_equations, 2*V_2d.rows());
     A.setFromTriplets(triplet_list.begin(), triplet_list.end());
+
+    W.resize(n_equations, n_equations);
+    W.setFromTriplets(weight_triplets.begin(), weight_triplets.end());
 
     #ifdef LOCALGLOBAL_DEBUG
     std::cout << "Sparse matrix computed." << std::endl;
@@ -161,9 +164,16 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
     steady_clock::time_point pre_localglobal = steady_clock::now();
     #endif
 
-    Eigen::SparseMatrix<double> A;
+    Eigen::SparseMatrix<double> A, W;
     Eigen::VectorXd b, x;
-    makeSparseMatrix(V_2d, V_3d, F, E, A, b);
+    makeSparseMatrix(V_2d, V_3d, F, E, A, b, W);
+
+    // WEIGHTED SOLVE: https://math.stackexchange.com/questions/709602/when-solving-an-overdetermined-linear-system-is-it-possible-to-weight-the-influ
+
+    #ifdef LOCALGLOBAL_DEBUG_SMALL
+    std::cout << "W" << std::endl;
+    std::cout << W << std::endl;
+    #endif
 
     // solve Ax = b
     #ifdef LOCALGLOBAL_DEBUG
@@ -171,9 +181,12 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
     std::cout << "Solver init..." << std::endl;
     #endif
 
+    Eigen::SparseMatrix<double> At = A;
+    At = At.transpose();
+    Eigen::SparseMatrix<double> Ap = At * W.transpose() * W * A;
     //Eigen::SimplicialLDLT <Eigen::SparseMatrix<double>> solver;
     //Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver(A);
-    Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double>> solver(A);
+    Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double>> solver(Ap);
     //Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver;
     //solver.setPivotThreshold(0.0f); //better performance if matrix has full rank
     //solver.compute(A);
@@ -188,7 +201,8 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
     steady_clock::time_point pre_solve = steady_clock::now();
     #endif
 
-    x = solver.solve(b);
+    Eigen::VectorXd bp = A.transpose() * W.transpose() * W * b;
+    x = solver.solve(bp);
     if(solver.info() != Eigen::Success) {
         std::cout << "ERROR: solving failed" << std::endl;
         //return;

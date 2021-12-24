@@ -14,7 +14,7 @@
 
 #include "mccartney.h"
 #include "procustes.h"
-#include "localglobal.h"
+#include "localglobal_bary.h"
 
 igl::opengl::glfw::Viewer viewer; // TODO MOVE
 
@@ -26,8 +26,11 @@ Eigen::MatrixXd fromVectorToColors(const Eigen::VectorXd& vector){
     Eigen::VectorXd adjusted = vector;
     adjusted = adjusted.array() - adjusted.minCoeff();
     double mean = adjusted.mean();
-    adjusted = adjusted.array() / (2 * mean); // center mean at 0.5
+    //adjusted = adjusted.array() / (2 * mean); // center mean at 0.5
+    
+    adjusted = adjusted.array() * 100.0;
 
+    printMatStats("vector", vector);
 
 
     adjusted = adjusted.cwiseMin(1.0);
@@ -132,7 +135,13 @@ int main(int argc, char *argv[]){
 
     //*
     igl::readOBJ("../data/dress_front_cut.obj", V_3d, F0);
-    igl::readOBJ("../data/flat_dress.obj", V_2d, F);//*/
+    igl::readOBJ("../data/flat_dress.obj", V_2d, F);
+    //*/
+
+    /*
+    igl::readOBJ("../data/semisphere_uncut.obj", V_3d, F0);
+    igl::readOBJ("../data/semisphere_uncut_flat.obj", V_2d, F);
+    //*/
 
 
     /*
@@ -172,7 +181,51 @@ int main(int argc, char *argv[]){
     F0 = F;
     //*/
 
-    double scale_f = 2.0;
+    /*
+    V_2d.resize(4, 3);
+    V_3d.resize(4, 3);
+    F.resize(2, 3);
+
+    double d = std::sqrt(2.0)/2.0;
+    V_2d <<  0,   0, 0,
+           1.0,   0, 0,
+             d,     d, 0,
+           1.0 + d, d, 0;
+
+    V_3d <<  0,   0, 0,
+           1.0,   0, 0,
+             0, 1.0, 0,
+           1.0, 1.0, 0;
+
+    F << 0, 1, 2,
+         1, 3, 2;
+
+    F0 = F;
+    //*/
+
+    /*
+    V_2d.resize(4, 3);
+    V_3d.resize(4, 3);
+    F.resize(2, 3);
+
+    double d = std::sqrt(2.0)/2.0;
+    V_3d <<  0,   0, 0,
+           1.0,   0, 0,
+             d,     d, 0,
+           1.0 + d, d, 0;
+
+    V_2d <<  0,   0, 0,
+           1.0,   0, 0,
+             0, 1.0, 0,
+           1.0, 1.0, 0;
+
+    F << 0, 1, 2,
+         1, 3, 2;
+
+    F0 = F;
+    //*/
+
+    double scale_f = 1.0;
     V_3d *= scale_f;
     V_2d *= scale_f;
 
@@ -335,7 +388,7 @@ int main(int argc, char *argv[]){
 
             if (ImGui::Button("Local global test", ImVec2(-1, 0))){
                 V_2d = localGlobal(V_2d, V_3d, F, E);
-                //viewer.data().set_mesh(V_2d, F);
+                viewer.data().set_mesh(V_2d, F);
                 viewer.data().set_uv(V_2d);
                 //Eigen::VectorXd E = paramLocalGlobal(V_3d, F, V_2d, 0);
                 //viewer.data().set_colors(fromVectorToColors(E));
