@@ -142,7 +142,7 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2), DUV_bary(2) - D_bary(2)));
     target_vector.push_back(target_uv_u);
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_vector.push_back(0.5);
+        weight_vector.push_back(0.8);
         //weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 0.7));
     next_equation_id ++;
 
@@ -154,7 +154,7 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2) + 1, DUV_bary(2) - D_bary(2)));
     target_vector.push_back(target_uv_v);
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_vector.push_back(0.5);
+        weight_vector.push_back(0.8);
         //weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 0.7));
     next_equation_id ++;
 
@@ -283,7 +283,7 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
     Eigen::VectorXd bp = b;
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
         bp = A.transpose() * Wt * W * b;
-        bp = W * b;
+        //bp = W * b;
     }
     x = solver.solve(bp);
     if(solver.info() != Eigen::Success) {
