@@ -69,27 +69,6 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
 
     Eigen::MatrixXd V_tri_2d = makeTriPoints(V_2d, F, f_id); // Could be removed for perf
     Eigen::MatrixXd V_tri_3d = makeTriPoints(V_3d, F, f_id);
-    
-    V_tri_3d = move3Dto2D(V_tri_3d);
-    Eigen::MatrixXd R_est;
-    Eigen::VectorXd T_est;
-    procustes(V_tri_2d, V_tri_3d, R_est, T_est);
-
-    // TODO check assumptions
-
-    //Eigen::MatrixXd p1 = V_tri_2d; 
-    Eigen::MatrixXd p2 = V_tri_3d; // TODO get rid of extra notation
-
-    Eigen::MatrixXd p2_rt, p2_r;
-    Eigen::MatrixXd p2t = p2.transpose(); // TODO transposeInPlace ? // TODO Is it useless?
-    p2_rt = p2t.colwise() - T_est;
-    p2_rt = (R_est.transpose() * p2_rt);
-    p2_r = p2_rt.transpose();
-
-    std::vector<std::pair<int, int>> edges = {std::make_pair(0,1), std::make_pair(0,2), std::make_pair(1,2)}; 
-
-    Eigen::RowVectorXd Ap = p2_r.row(0);
-    Eigen::RowVectorXd Bp = p2_r.row(1);
 
     Eigen::RowVectorXd D = (V_tri_2d.row(0) + V_tri_2d.row(1) + V_tri_2d.row(2))/3.0; // centroid
     Eigen::Vector3d D_bary(0.333333, 0.333333, 0.333333);
@@ -103,10 +82,6 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     DUV(0) += 1.0;
     DUV(1) += 1.0;
     Eigen::Vector3d DUV_bary = barycentricCoords(DUV, V_tri_2d.row(0), V_tri_2d.row(1), V_tri_2d.row(2));
-    std::cout << "bary centroid: " << barycentricCoords(D, V_tri_2d.row(0), V_tri_2d.row(1), V_tri_2d.row(2)) << std::endl;
-    std::cout << "bary DU: " << DU_bary << std::endl;
-    std::cout << "bary DV: " << DV_bary << std::endl;
-    std::cout << "bary DUV: " << DUV_bary << std::endl;
 
     Eigen::RowVectorXd Dp = D_bary(0) * V_tri_3d.row(0) + D_bary(1) * V_tri_3d.row(1) + D_bary(2) * V_tri_3d.row(2);
     Eigen::RowVectorXd DUp = DU_bary(0) * V_tri_3d.row(0) + DU_bary(1) * V_tri_3d.row(1) + DU_bary(2) * V_tri_3d.row(2);
@@ -120,15 +95,16 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     double target_uv_u = (DUVp - Dp).dot(DUp - Dp)/(DUp - Dp).norm();
     double target_uv_v = (DUVp - Dp).dot(DVp - Dp)/(DVp - Dp).norm();;
 
+    #ifdef LOCALGLOBAL_DEBUG
+    std::cout << "bary centroid: " << barycentricCoords(D, V_tri_2d.row(0), V_tri_2d.row(1), V_tri_2d.row(2)) << std::endl;
+    std::cout << "bary DU: " << DU_bary << std::endl;
+    std::cout << "bary DV: " << DV_bary << std::endl;
+    std::cout << "bary DUV: " << DUV_bary << std::endl;
     std::cout << "target_u: " << target_u << std::endl;
     std::cout << "target_v: " << target_v << std::endl;
     std::cout << "target_uv_u: " << target_uv_u << std::endl;
     std::cout << "target_uv_v: " << target_uv_v << std::endl;
-
-    // Eq: DU - D = target_u 
-    // bary DU - bary D = target_u
-    // DU_bary(0) * Au + DU_bary(1) * Bu + DU_bary(2) * Cu - D_bary(0) * Au - D_bary(1) * Bu - D_bary(2) * Cu
-    // Au * (DU_bary(0) - D_bary(0)) + Bu * (DU_bary(1) - D_bary(1)) + Cu * (DU_bary(2) - D_bary(2))  
+    #endif
 
     // Au
     triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 0), DU_bary(0) - D_bary(0)));
@@ -138,7 +114,7 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2), DU_bary(2) - D_bary(2)));
     target_vector.push_back(target_u);
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 1.0)); // TODO SET WEIGHTS
+        weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 1.0));
     next_equation_id ++;
 
     // Av
@@ -149,7 +125,7 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2) + 1, DV_bary(2) - D_bary(2)));
     target_vector.push_back(target_v);
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 1.0)); // TODO SET WEIGHTS
+        weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 1.0));
     next_equation_id ++;
 
     // Shear: for shear we actually need two: check how much diagonal changes on U, and on V
@@ -162,7 +138,7 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2), DUV_bary(2) - D_bary(2)));
     target_vector.push_back(target_uv_u);
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 0.7)); // TODO SET WEIGHTS
+        weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 1.3));
     next_equation_id ++;
 
     // A_uv_v
@@ -173,7 +149,7 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2) + 1, DUV_bary(2) - D_bary(2)));
     target_vector.push_back(target_uv_v);
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 0.7)); // TODO SET WEIGHTS
+        weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 1.3));
     next_equation_id ++;
 
     //*/
@@ -252,6 +228,7 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
     }
 
     // WEIGHTED SOLVE: https://math.stackexchange.com/questions/709602/when-solving-an-overdetermined-linear-system-is-it-possible-to-weight-the-influ
+    // https://forum.kde.org/viewtopic.php?f=74&t=110784
 
     #ifdef LOCALGLOBAL_DEBUG_SMALL
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
@@ -266,24 +243,25 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
     std::cout << "Solver init..." << std::endl;
     #endif
 
-    Eigen::SparseMatrix<double> At = A;
-    At = At.transpose();
     Eigen::SparseMatrix<double> Ap = A;
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
+        Eigen::SparseMatrix<double> At = A;
+        At = At.transpose();
         Ap = At * W.transpose() * W * A;
+        //Ap = W * A;
     }
     //Eigen::SimplicialLDLT <Eigen::SparseMatrix<double>> solver;
     //Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver(A);
     Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double>> solver(Ap);
     //Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver;
     //solver.setPivotThreshold(0.0f); //better performance if matrix has full rank
-    //solver.compute(A);
+    //solver.compute(A); //for sparseQR
     if(solver.info() != Eigen::Success) {
         std::cout << "ERROR: decomposition failed" << std::endl;
         //return;
     }
-    //x.setZero();
-    x = vertices2dToVector(V_2d);
+
+    x = vertices2dToVector(V_2d); // Initial solution
 
     #ifdef LOCALGLOBAL_TIMING
     steady_clock::time_point pre_solve = steady_clock::now();
@@ -292,6 +270,7 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
     Eigen::VectorXd bp = b;
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
         bp = A.transpose() * W.transpose() * W * b;
+        //bp = W * b;
     }
     x = solver.solve(bp);
     if(solver.info() != Eigen::Success) {
@@ -313,8 +292,6 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
     std::cout << A << std::endl;
     std::cout << "b" << std::endl;
     std::cout << b << std::endl;
-    std::cout << x.topRows(10) << std::endl;
-    std::cout << x << std::endl;
     #endif
 
     Eigen::MatrixXd res = Eigen::MatrixXd::Zero(V_2d.rows(), 3);
