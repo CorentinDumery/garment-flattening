@@ -21,6 +21,8 @@ using std::chrono::duration_cast;
 using std::chrono::microseconds;
 #endif
 
+typedef Eigen::DiagonalMatrix<double, Eigen::Dynamic> DiagonalMatrixXd;
+
 // Interesting discussion on Eigen performance for LSCM:
 // https://forum.kde.org/viewtopic.php?f=74&t=125165
 
@@ -62,7 +64,7 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
                            const Eigen::MatrixXi& F, int f_id,
                            std::vector<Eigen::Triplet<double>>& triplet_list,
                            std::vector<double>& target_vector,
-                           std::vector<Eigen::Triplet<double>>& weight_triplets){
+                           std::vector<double>& weight_vector){
     
     // each triangle gives us 2 equations:
     // one target u and one target v
@@ -114,7 +116,8 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2), DU_bary(2) - D_bary(2)));
     target_vector.push_back(target_u);
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 1.0));
+        weight_vector.push_back(1.0);
+        //weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 1.0));
     next_equation_id ++;
 
     // Av
@@ -125,7 +128,8 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2) + 1, DV_bary(2) - D_bary(2)));
     target_vector.push_back(target_v);
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 1.0));
+        weight_vector.push_back(1.0);
+        //weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 1.0));
     next_equation_id ++;
 
     // Shear: for shear we actually need two: check how much diagonal changes on U, and on V
@@ -138,7 +142,8 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2), DUV_bary(2) - D_bary(2)));
     target_vector.push_back(target_uv_u);
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 1.3));
+        weight_vector.push_back(0.5);
+        //weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 0.7));
     next_equation_id ++;
 
     // A_uv_v
@@ -149,7 +154,8 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2) + 1, DUV_bary(2) - D_bary(2)));
     target_vector.push_back(target_uv_v);
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 1.3));
+        weight_vector.push_back(0.5);
+        //weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 0.7));
     next_equation_id ++;
 
     //*/
@@ -158,7 +164,7 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
 void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
                       const Eigen::MatrixXi& F, const Eigen::MatrixXi& E,
                       Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b,
-                      Eigen::SparseMatrix<double>& W){
+                      DiagonalMatrixXd& W){
 
     // Sparse conventions:
     // we have n target equations
@@ -172,10 +178,10 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
     std::vector<Eigen::Triplet<double>> triplet_list; // Perf: get rid of std::vector
     std::vector<double> target_vector; // Perf: get rid of std::vector
     triplet_list.reserve(3*n_equations);
-    std::vector<Eigen::Triplet<double>> weight_triplets; // Perf: get rid of std::vector
+    std::vector<double> weight_vector; // Perf: get rid of std::vector
     // TODO PERF: reserve for triplets?
     for (int f_id=0; f_id<F.rows(); f_id++) {
-        equationsFromTriangle(V_2d, V_3d, F, f_id, triplet_list, target_vector, weight_triplets);
+        equationsFromTriangle(V_2d, V_3d, F, f_id, triplet_list, target_vector, weight_vector);
     }
 
     //b = Eigen::VectorXd(target_vector.size(), target_vector.data()); // Perf: get rid of std::vector
@@ -203,8 +209,14 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
     A.setFromTriplets(triplet_list.begin(), triplet_list.end());
 
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
-        W.resize(n_equations, n_equations);
-        W.setFromTriplets(weight_triplets.begin(), weight_triplets.end());
+        //W.resize(n_equations, n_equations);
+        //W.setFromTriplets(weight_triplets.begin(), weight_triplets.end());
+        //W.resize(n_equations);
+        Eigen::VectorXd temp(n_equations);
+        for (int i=0; i<n_equations; i++){
+            temp(i) = weight_vector[i]; // TODO perf
+        }
+        W = temp.asDiagonal();
     }
 
     #ifdef LOCALGLOBAL_DEBUG
@@ -219,12 +231,13 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
     steady_clock::time_point pre_localglobal = steady_clock::now();
     #endif
 
-    Eigen::SparseMatrix<double> A, W;
+    Eigen::SparseMatrix<double> A;
+    DiagonalMatrixXd W;
     Eigen::VectorXd b, x;
     makeSparseMatrix(V_2d, V_3d, F, E, A, b, W);
-    Eigen::SparseMatrix<double> Wt = W;
+    DiagonalMatrixXd Wt = W;
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
-        Wt = Wt.transpose();
+        //Wt = Wt.transpose();
     }
 
     // WEIGHTED SOLVE: https://math.stackexchange.com/questions/709602/when-solving-an-overdetermined-linear-system-is-it-possible-to-weight-the-influ
@@ -247,7 +260,7 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
         Eigen::SparseMatrix<double> At = A;
         At = At.transpose();
-        Ap = At * W.transpose() * W * A;
+        Ap = At * Wt * W * A;
         //Ap = W * A;
     }
     //Eigen::SimplicialLDLT <Eigen::SparseMatrix<double>> solver;
@@ -269,8 +282,8 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
 
     Eigen::VectorXd bp = b;
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
-        bp = A.transpose() * W.transpose() * W * b;
-        //bp = W * b;
+        bp = A.transpose() * Wt * W * b;
+        bp = W * b;
     }
     x = solver.solve(bp);
     if(solver.info() != Eigen::Success) {
