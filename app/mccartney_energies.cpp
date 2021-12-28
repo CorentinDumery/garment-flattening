@@ -6,6 +6,7 @@
 #include <igl/readOBJ.h>
 #include <igl/png/readPNG.h>
 #include <igl/edges.h>
+#include <igl/unproject_onto_mesh.h>
 
 //#define COMP_WITH_NET_PARAM
 #ifdef COMP_WITH_NET_PARAM
@@ -136,12 +137,12 @@ int main(int argc, char *argv[]){
     Eigen::MatrixXd V_3d, V_2d, V_2di;
     Eigen::MatrixXi F, F0;
 
-    /*
+    //*
     igl::readOBJ("../data/dress_front_cut.obj", V_3d, F0);
     igl::readOBJ("../data/flat_dress.obj", V_2d, F);
     //*/
 
-    //*
+    /*
     igl::readOBJ("../data/semisphere_uncut.obj", V_3d, F0);
     igl::readOBJ("../data/semisphere_uncut_flat.obj", V_2d, F);
     //*/
@@ -437,11 +438,54 @@ int main(int argc, char *argv[]){
                 viewer.data().set_uv(V_2d);
             }
 
+            float selected_f = bo.selected_coeff_;
+            if (ImGui::SliderFloat("selected factor", &selected_f, 0.0f, 100.0f, "%.3f")){
+                V_2d = V_2di;
+                bo.selected_coeff_ = selected_f;
+                for (int i=0; i<1; i++){
+                    V_2d = bo.localGlobal(V_2d, V_3d, F);
+                }
+                if (update_v2d) viewer.data().set_mesh(V_2d, F);
+                viewer.data().set_uv(V_2d);
+            }
+
             ImGui::Checkbox("Update V_2d", &update_v2d);
 
             ImGui::End();
         }
     
+    };
+
+
+    std::vector<int> selected_vs = {-1, -1};
+    int next_select = 0;
+
+    viewer.callback_key_down = [&V_3d, &F, &selected_vs, &next_select, &bo](igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifiers)->bool{
+        double mouse_x = viewer.current_mouse_x;
+        double mouse_y = viewer.core().viewport(3) - viewer.current_mouse_y;
+        int fid = -2;
+        Eigen::RowVector3d bc;
+        if(igl::unproject_onto_mesh(Eigen::Vector2f(mouse_x, mouse_y), viewer.core().view,
+                                    viewer.core().proj, viewer.core().viewport, V_3d, F, fid, bc)){
+            int argmax = -1;
+            if (bc(0) >= bc(1) && bc(0) >= bc(2)) argmax = 0;
+            if (bc(1) >= bc(0) && bc(1) >= bc(2)) argmax = 1;
+            if (bc(2) >= bc(0) && bc(2) >= bc(1)) argmax = 2;
+            std::cout << F(fid, argmax) << std::endl;
+
+            selected_vs[next_select] = F(fid, argmax);
+            next_select = 1 - next_select;
+
+            bo.setSelectedVertices(selected_vs);
+
+            viewer.data().clear_points();
+            for (int i=0; i<selected_vs.size(); i++){
+                if (selected_vs[i] == -1) continue;
+                viewer.data().add_points(V_3d.row(selected_vs[i]), Eigen::RowVector3d(1.0, 0, 0));
+            }
+            return true;
+        }
+        return false;
     };
 
     //updateViz();

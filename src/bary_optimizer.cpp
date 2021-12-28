@@ -223,6 +223,11 @@ void BaryOptimizer::makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::M
         n_triplets += 2 * 2 * F.rows();
     }
 
+    if (canUseSelectedEquation()){
+        n_equations += 1;
+        n_triplets += 2;
+    }
+
     std::vector<Eigen::Triplet<double>> triplet_list; // Perf: get rid of std::vector
     std::vector<double> target_vector; // Perf: get rid of std::vector
     triplet_list.reserve(n_triplets);
@@ -244,6 +249,18 @@ void BaryOptimizer::makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::M
         target_vector.push_back(V_2d(0,1));
         if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
             weight_vector.push_back(1.0);
+        next_equation_id_ ++;
+    }
+
+    if (canUseSelectedEquation()){
+        // selected vertices should have = V
+        int v0 = selected_vs_[0];
+        int v1 = selected_vs_[1];
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * v0 + 1, 1.0));
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * v1 + 1, -1.0));
+        target_vector.push_back(0);
+        if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
+            weight_vector.push_back(selected_coeff_);
         next_equation_id_ ++;
     }
 

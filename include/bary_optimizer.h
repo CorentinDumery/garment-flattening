@@ -20,6 +20,8 @@ public:
     Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d, 
                                 const Eigen::MatrixXi& F);
 
+    void setSelectedVertices(std::vector<int> selected_vs) {selected_vs_ = selected_vs;};
+
     // Config parameters
     bool enable_stretch_eqs_ = true;
     double stretch_coeff_ = 10.0;
@@ -28,10 +30,13 @@ public:
     bool enable_set_seed_eqs_ = true;
     bool enable_edges_eqs_ = true;
     double edges_coeff_ = 0.001;
+    bool enable_selected_eqs_ = true;
+    double selected_coeff_ = 1.0;
 
 private:
 
     int next_equation_id_ = 0;
+    std::vector<int> selected_vs_;
     
     void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
                                const Eigen::MatrixXi& F, int f_id,
@@ -44,5 +49,8 @@ private:
                       Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b,
                       DiagonalMatrixXd& W);
 
+    bool canUseSelectedEquation(){
+        return enable_selected_eqs_ && selected_vs_.size() >= 2 && selected_vs_[0] > 0 && selected_vs_[1] >= 0;
+    }
     
 };
