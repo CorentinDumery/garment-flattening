@@ -6,8 +6,10 @@ project(flat)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 add_definitions(-DIGL_VIEWER_VIEWER_QUIET)
 
+find_package(OpenMP REQUIRED)
+
 add_subdirectory(lib/libigl)
-add_subdirectory(lib/vcglib)
+#add_subdirectory(lib/vcglib)
 
 file(GLOB SRCFILES src/*.cpp)
 file(GLOB PARAFASHIONFILES src/parafashion/*.cpp)
@@ -43,17 +45,17 @@ add_executable(triangle_energies app/triangle_energies.cpp src/net_param.cpp src
 target_link_libraries(triangle_energies igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
 
 add_executable(mccartney_energies app/mccartney_energies.cpp src/net_param.cpp src/procustes.cpp)
-target_link_libraries(mccartney_energies igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png)
+target_link_libraries(mccartney_energies igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png OpenMP::OpenMP_CXX)
 
 add_executable(energy_check app/energy_check.cpp src/procustes.cpp)
 target_link_libraries(energy_check igl::core)
 
-add_executable(markables app/markables.cpp ${VCGSRC} ${OLDIGLSRC} ${PARAFASHIONFILES} ${TRACINGFILES})
-target_link_libraries(markables igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png)
-target_include_directories(markables 
-PUBLIC lib/vcglib/    
-        lib/oldigl/    
-        lib/field_tracing/tracing/)
+#add_executable(markables app/markables.cpp ${VCGSRC} ${OLDIGLSRC} ${PARAFASHIONFILES} ${TRACINGFILES})
+#target_link_libraries(markables igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png)
+#target_include_directories(markables 
+#PUBLIC lib/vcglib/    
+#        lib/oldigl/    
+#        lib/field_tracing/tracing/)
 
-add_executable(crosses app/crosses.cpp)
-target_link_libraries(crosses igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
+#add_executable(crosses app/crosses.cpp)
+#target_link_libraries(crosses igl::opengl_glfw igl::core igl::opengl_glfw_imgui)

@@ -142,7 +142,7 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2), DUV_bary(2) - D_bary(2)));
     target_vector.push_back(target_uv_u);
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_vector.push_back(0.8);
+        weight_vector.push_back(0.7);
         //weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 0.7));
     next_equation_id ++;
 
@@ -154,7 +154,7 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2) + 1, DUV_bary(2) - D_bary(2)));
     target_vector.push_back(target_uv_v);
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_vector.push_back(0.8);
+        weight_vector.push_back(0.7);
         //weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 0.7));
     next_equation_id ++;
 
@@ -162,7 +162,7 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
 }
 
 void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
-                      const Eigen::MatrixXi& F, const Eigen::MatrixXi& E,
+                      const Eigen::MatrixXi& F,
                       Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b,
                       DiagonalMatrixXd& W){
 
@@ -225,7 +225,7 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
 }
 
 Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d, 
-                            const Eigen::MatrixXi& F, const Eigen::MatrixXi& E){
+                            const Eigen::MatrixXi& F){
 
     #ifdef LOCALGLOBAL_TIMING
     steady_clock::time_point pre_localglobal = steady_clock::now();
@@ -234,7 +234,7 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
     Eigen::SparseMatrix<double> A;
     DiagonalMatrixXd W;
     Eigen::VectorXd b, x;
-    makeSparseMatrix(V_2d, V_3d, F, E, A, b, W);
+    makeSparseMatrix(V_2d, V_3d, F, A, b, W);
     DiagonalMatrixXd Wt = W;
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
         //Wt = Wt.transpose();
@@ -245,8 +245,8 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
 
     #ifdef LOCALGLOBAL_DEBUG_SMALL
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
-        std::cout << "W" << std::endl;
-        std::cout << W << std::endl;
+        std::cout << "W's diagonal coefficients: " << std::endl;
+        std::cout << W.diagonal() << std::endl;
     }
     #endif
 
@@ -257,18 +257,22 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
     #endif
 
     Eigen::SparseMatrix<double> Ap = A;
+    Eigen::SparseMatrix<double> At = A;
+    At = At.transpose();
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
-        Eigen::SparseMatrix<double> At = A;
-        At = At.transpose();
         Ap = At * Wt * W * A;
         //Ap = W * A;
     }
-    //Eigen::SimplicialLDLT <Eigen::SparseMatrix<double>> solver;
-    //Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver(A);
-    Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double>> solver(Ap);
+    
+    Eigen::SimplicialLDLT<Eigen::SparseMatrix<double> > solver;
+    solver.compute(Ap);
+
+    //Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double>> solver(Ap);
+    
     //Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver;
     //solver.setPivotThreshold(0.0f); //better performance if matrix has full rank
     //solver.compute(A); //for sparseQR
+
     if(solver.info() != Eigen::Success) {
         std::cout << "ERROR: decomposition failed" << std::endl;
         //return;
@@ -276,19 +280,26 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
 
     x = vertices2dToVector(V_2d); // Initial solution
 
+    Eigen::VectorXd bp = b;
+    if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
+        bp = At * Wt * W * b;
+        //bp = W * b;
+    }
+
     #ifdef LOCALGLOBAL_TIMING
     steady_clock::time_point pre_solve = steady_clock::now();
     #endif
 
-    Eigen::VectorXd bp = b;
-    if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
-        bp = A.transpose() * Wt * W * b;
-        //bp = W * b;
-    }
     x = solver.solve(bp);
+
     if(solver.info() != Eigen::Success) {
-        std::cout << "ERROR: solving failed" << std::endl;
-        //return;
+        std::cout << "ERROR, solving failed: ";
+        if(solver.info() == Eigen::NumericalIssue) 
+            std::cout << "NumericalIssue" << std::endl;
+        if(solver.info() == Eigen::NoConvergence) 
+            std::cout << "NoConvergence" << std::endl;
+        if(solver.info() == Eigen::InvalidInput) 
+            std::cout << "InvalidInput" << std::endl;
     }
 
     #ifdef LOCALGLOBAL_TIMING

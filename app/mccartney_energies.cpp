@@ -130,15 +130,18 @@ Eigen::VectorXd paramLocalGlobal(const Eigen::MatrixXd& V_3d, const Eigen::Matri
 
 int main(int argc, char *argv[]){
 
+    //Eigen::setNbThreads(1);
+    std::cout << "Eigen is using " << Eigen::nbThreads() << " threads." << std::endl;
+
     Eigen::MatrixXd V_3d, V_2d;
     Eigen::MatrixXi F, F0;
 
-    //*
+    /*
     igl::readOBJ("../data/dress_front_cut.obj", V_3d, F0);
     igl::readOBJ("../data/flat_dress.obj", V_2d, F);
     //*/
 
-    /*
+    //*
     igl::readOBJ("../data/semisphere_uncut.obj", V_3d, F0);
     igl::readOBJ("../data/semisphere_uncut_flat.obj", V_2d, F);
     //*/
@@ -229,8 +232,10 @@ int main(int argc, char *argv[]){
     V_3d *= scale_f;
     V_2d *= scale_f;
 
-    Eigen::MatrixXi E;
-    igl::edges(F, E);
+    //Eigen::MatrixXi E;
+    //igl::edges(F, E);
+
+    std::cout << "F.rows(): " << F.rows() << std::endl;
 
     Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> R,G,B,A;
     igl::png::readPNG("../data/grid.png",R,G,B,A);
@@ -387,7 +392,7 @@ int main(int argc, char *argv[]){
             ImGui::Separator();
 
             if (ImGui::Button("Local global test", ImVec2(-1, 0))){
-                V_2d = localGlobal(V_2d, V_3d, F, E);
+                V_2d = localGlobal(V_2d, V_3d, F);
                 viewer.data().set_mesh(V_2d, F);
                 viewer.data().set_uv(V_2d);
                 //Eigen::VectorXd E = paramLocalGlobal(V_3d, F, V_2d, 0);
