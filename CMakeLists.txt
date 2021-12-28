@@ -44,7 +44,7 @@ target_link_libraries(render_coords igl::opengl_glfw igl::core)
 add_executable(triangle_energies app/triangle_energies.cpp src/net_param.cpp src/procustes.cpp)
 target_link_libraries(triangle_energies igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
 
-add_executable(mccartney_energies app/mccartney_energies.cpp src/net_param.cpp src/procustes.cpp)
+add_executable(mccartney_energies app/mccartney_energies.cpp src/net_param.cpp src/procustes.cpp src/bary_optimizer.cpp)
 target_link_libraries(mccartney_energies igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png OpenMP::OpenMP_CXX)
 
 add_executable(energy_check app/energy_check.cpp src/procustes.cpp)

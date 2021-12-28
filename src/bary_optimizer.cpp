@@ -1,17 +1,12 @@
-
+#include "bary_optimizer.h"
 
 #include <Eigen/Core>
 #include <iostream>
 
-#include "procustes.h"
-
-// One of 
-//#include <Eigen/SparseCholesky>
-//#include <Eigen/SparseQR>
 #include <Eigen/IterativeLinearSolvers> // https://forum.kde.org/viewtopic.php?f=74&t=125165
 
 //#define LOCALGLOBAL_DEBUG
-#define LOCALGLOBAL_TIMING
+//#define LOCALGLOBAL_TIMING
 //#define LOCALGLOBAL_DEBUG_SMALL // print full matrices, should be small
 
 #ifdef LOCALGLOBAL_TIMING
@@ -21,12 +16,7 @@ using std::chrono::duration_cast;
 using std::chrono::microseconds;
 #endif
 
-typedef Eigen::DiagonalMatrix<double, Eigen::Dynamic> DiagonalMatrixXd;
-
-// Interesting discussion on Eigen performance for LSCM:
-// https://forum.kde.org/viewtopic.php?f=74&t=125165
-
-int next_equation_id = 0; // TODO put somewhere else
+#include "procustes.h" // needed for: makeTriPoints
 
 #define USE_WEIGTHS_IN_LINEAR_SYSTEM true
 
@@ -59,8 +49,7 @@ Eigen::Vector3d barycentricCoords(const Eigen::RowVector3d& p, const Eigen::RowV
     return Eigen::Vector3d(u, v, w);
 }
 
-
-void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
+void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
                            const Eigen::MatrixXi& F, int f_id,
                            std::vector<Eigen::Triplet<double>>& triplet_list,
                            std::vector<double>& target_vector,
@@ -108,63 +97,101 @@ void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V
     std::cout << "target_uv_v: " << target_uv_v << std::endl;
     #endif
 
-    // Au
-    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 0), DU_bary(0) - D_bary(0)));
-    // Bu
-    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 1), DU_bary(1) - D_bary(1)));
-    // Cu
-    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2), DU_bary(2) - D_bary(2)));
-    target_vector.push_back(target_u);
-    if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_vector.push_back(1.0);
-        //weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 1.0));
-    next_equation_id ++;
+    if (enable_stretch_eqs_){
+        // Au
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 0), DU_bary(0) - D_bary(0)));
+        // Bu
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 1), DU_bary(1) - D_bary(1)));
+        // Cu
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 2), DU_bary(2) - D_bary(2)));
+        target_vector.push_back(target_u);
+        if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
+            weight_vector.push_back(stretch_coeff_);
+        next_equation_id_ ++;
 
-    // Av
-    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 0) + 1, DV_bary(0) - D_bary(0)));
-    // Bv
-    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 1) + 1, DV_bary(1) - D_bary(1)));
-    // Cv
-    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2) + 1, DV_bary(2) - D_bary(2)));
-    target_vector.push_back(target_v);
-    if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_vector.push_back(1.0);
-        //weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 1.0));
-    next_equation_id ++;
+        // Av
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 0) + 1, DV_bary(0) - D_bary(0)));
+        // Bv
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 1) + 1, DV_bary(1) - D_bary(1)));
+        // Cv
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 2) + 1, DV_bary(2) - D_bary(2)));
+        target_vector.push_back(target_v);
+        if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
+            weight_vector.push_back(stretch_coeff_);
+        next_equation_id_ ++;
+    }
 
-    // Shear: for shear we actually need two: check how much diagonal changes on U, and on V
-    //*
-    // A_uv_u
-    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 0), DUV_bary(0) - D_bary(0)));
-    // B_uv_u
-    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 1), DUV_bary(1) - D_bary(1)));
-    // C_uv_u
-    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2), DUV_bary(2) - D_bary(2)));
-    target_vector.push_back(target_uv_u);
-    if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_vector.push_back(0.7);
-        //weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 0.7));
-    next_equation_id ++;
+    if (enable_angle_eqs_){
+        // Shear: for shear we actually need two: check how much diagonal changes on U, and on V
+        // A_uv_u
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 0), DUV_bary(0) - D_bary(0)));
+        // B_uv_u
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 1), DUV_bary(1) - D_bary(1)));
+        // C_uv_u
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 2), DUV_bary(2) - D_bary(2)));
+        target_vector.push_back(target_uv_u);
+        if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
+            weight_vector.push_back(angle_coeff_);
+        next_equation_id_ ++;
 
-    // A_uv_v
-    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 0) + 1, DUV_bary(0) - D_bary(0)));
-    // B_uv_v
-    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 1) + 1, DUV_bary(1) - D_bary(1)));
-    // C_uv_v
-    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * F(f_id, 2) + 1, DUV_bary(2) - D_bary(2)));
-    target_vector.push_back(target_uv_v);
-    if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-        weight_vector.push_back(0.7);
-        //weight_triplets.push_back(Eigen::Triplet<double>(next_equation_id, next_equation_id, 0.7));
-    next_equation_id ++;
+        // A_uv_v
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 0) + 1, DUV_bary(0) - D_bary(0)));
+        // B_uv_v
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 1) + 1, DUV_bary(1) - D_bary(1)));
+        // C_uv_v
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 2) + 1, DUV_bary(2) - D_bary(2)));
+        target_vector.push_back(target_uv_v);
+        if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
+            weight_vector.push_back(angle_coeff_);
+        next_equation_id_ ++;
+    }
 
-    //*/
+    if (enable_edges_eqs_){
+        V_tri_3d = move3Dto2D(V_tri_3d);
+        Eigen::MatrixXd R_est;
+        Eigen::VectorXd T_est;
+        procustes(V_tri_2d, V_tri_3d, R_est, T_est);
+
+        // TODO check assumptions
+
+        //Eigen::MatrixXd p1 = V_tri_2d; // TODO get rid of extra notation
+        Eigen::MatrixXd p2 = V_tri_3d;
+
+        Eigen::MatrixXd p2_rt, p2_r;
+        Eigen::MatrixXd p2t = p2.transpose(); // TODO transposeInPlace ?
+        p2_rt = p2t.colwise() - T_est;
+        p2_rt = (R_est.transpose() * p2_rt);
+        p2_r = p2_rt.transpose();
+
+        std::vector<std::pair<int, int>> edges = {std::make_pair(0,1), std::make_pair(0,2), std::make_pair(1,2)}; 
+
+        for (std::pair<int, int> edge : edges){
+            Eigen::RowVectorXd Ap = p2_r.row(edge.first);
+            Eigen::RowVectorXd Bp = p2_r.row(edge.second);
+
+            double target_u = (Bp - Ap)(0);
+            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, edge.second), 1.0));
+            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, edge.first), -1.0));
+            target_vector.push_back(target_u);
+            if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
+                weight_vector.push_back(edges_coeff_);
+            next_equation_id_ ++;
+
+            double target_v = (Bp - Ap)(1);
+            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, edge.second) + 1, 1.0));
+            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, edge.first) + 1, -1.0));
+            target_vector.push_back(target_v);
+            if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
+                weight_vector.push_back(edges_coeff_);
+            next_equation_id_ ++;
+        }
+    }
 }
 
-void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
-                      const Eigen::MatrixXi& F,
-                      Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b,
-                      DiagonalMatrixXd& W){
+void BaryOptimizer::makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
+                                     const Eigen::MatrixXi& F,
+                                     Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b,
+                                     DiagonalMatrixXd& W){
 
     // Sparse conventions:
     // we have n target equations
@@ -172,17 +199,54 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
     // vertex i has its u coord in x(2*i) and its v coord in x(2*i+1)
     // M(equation, 2*v_id);
 
-    next_equation_id = 0; // TODO REMOVE GLOBAL
-    int n_equations = 4 * F.rows();
+    next_equation_id_ = 0;
+    int n_equations = 0; // Predict size for memory allocation
+    int n_triplets = 0;
+
+    if (enable_stretch_eqs_) {
+        n_equations += 2 * F.rows();
+        n_triplets += 3 * 2 * F.rows();
+    }
+
+    if (enable_angle_eqs_) {
+        n_equations += 2 * F.rows();
+        n_triplets += 3 * 2 * F.rows(); 
+    }
+
+    if (enable_set_seed_eqs_) {
+        n_equations += 2;
+        n_triplets += 2;
+    }
+
+    if (enable_edges_eqs_){
+        n_equations += 6 * F.rows();
+        n_triplets += 2 * 2 * F.rows();
+    }
 
     std::vector<Eigen::Triplet<double>> triplet_list; // Perf: get rid of std::vector
     std::vector<double> target_vector; // Perf: get rid of std::vector
-    triplet_list.reserve(3*n_equations);
+    triplet_list.reserve(n_triplets);
     std::vector<double> weight_vector; // Perf: get rid of std::vector
     // TODO PERF: reserve for triplets?
     for (int f_id=0; f_id<F.rows(); f_id++) {
         equationsFromTriangle(V_2d, V_3d, F, f_id, triplet_list, target_vector, weight_vector);
     }
+
+    if (enable_set_seed_eqs_){
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 0, 1.0));
+        target_vector.push_back(V_2d(0,0));
+        if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
+            weight_vector.push_back(1.0);
+        next_equation_id_ ++;
+
+
+        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 1, 1.0));
+        target_vector.push_back(V_2d(0,1));
+        if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
+            weight_vector.push_back(1.0);
+        next_equation_id_ ++;
+    }
+
 
     //b = Eigen::VectorXd(target_vector.size(), target_vector.data()); // Perf: get rid of std::vector
     b.resize(target_vector.size());
@@ -192,7 +256,7 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
 
     #ifdef LOCALGLOBAL_DEBUG
     std::cout << "n_equations: " << n_equations << std::endl;
-    std::cout << "next_equation_id: " << next_equation_id << std::endl;
+    std::cout << "next_equation_id_: " << next_equation_id_ << std::endl;
     std::cout << "triplet_list.size(): " << triplet_list.size() << std::endl; 
     std::cout << "target_vector.size(): " << target_vector.size() << std::endl; 
     #endif
@@ -201,9 +265,9 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
         std::cout << "ERROR: n_equations != b.rows(): " << n_equations << " vs " << target_vector.size() << std::endl;
     }
 
-    if (n_equations != triplet_list.size()/3){// + 1){
+    /*if (n_equations != triplet_list.size()/3){// + 1){
         std::cout << "ERROR: n_equations != triplet_list.size()/3: " << n_equations << " vs " << triplet_list.size() << std::endl;
-    }
+    }*/
 
     A.resize(n_equations, 2*V_2d.rows());
     A.setFromTriplets(triplet_list.begin(), triplet_list.end());
@@ -224,8 +288,8 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
     #endif
 }
 
-Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d, 
-                            const Eigen::MatrixXi& F){
+Eigen::MatrixXd BaryOptimizer::localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d, 
+                                           const Eigen::MatrixXi& F){
 
     #ifdef LOCALGLOBAL_TIMING
     steady_clock::time_point pre_localglobal = steady_clock::now();
@@ -239,9 +303,6 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
         //Wt = Wt.transpose();
     }
-
-    // WEIGHTED SOLVE: https://math.stackexchange.com/questions/709602/when-solving-an-overdetermined-linear-system-is-it-possible-to-weight-the-influ
-    // https://forum.kde.org/viewtopic.php?f=74&t=110784
 
     #ifdef LOCALGLOBAL_DEBUG_SMALL
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
@@ -264,7 +325,7 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
         //Ap = W * A;
     }
     
-    Eigen::SimplicialLDLT<Eigen::SparseMatrix<double> > solver;
+    Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
     solver.compute(Ap);
 
     //Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double>> solver(Ap);
@@ -279,6 +340,7 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
     }
 
     x = vertices2dToVector(V_2d); // Initial solution
+    x = Eigen::VectorXd::Zero(V_2d.rows() * 2);
 
     Eigen::VectorXd bp = b;
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
@@ -325,6 +387,7 @@ Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& 
     }
 
     #ifdef LOCALGLOBAL_TIMING
+    std::cout << "# of non-zero elements in linear system: " << Ap.nonZeros() << std::endl;
     steady_clock::time_point post_localglobal = steady_clock::now();
     int pre_time = duration_cast<microseconds>(pre_solve - pre_localglobal).count();
     int solve_time = duration_cast<microseconds>(post_solve - pre_solve).count();

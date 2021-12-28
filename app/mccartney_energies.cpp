@@ -14,7 +14,7 @@
 
 #include "mccartney.h"
 #include "procustes.h"
-#include "localglobal_bary.h"
+#include "bary_optimizer.h"
 
 igl::opengl::glfw::Viewer viewer; // TODO MOVE
 
@@ -133,7 +133,7 @@ int main(int argc, char *argv[]){
     //Eigen::setNbThreads(1);
     std::cout << "Eigen is using " << Eigen::nbThreads() << " threads." << std::endl;
 
-    Eigen::MatrixXd V_3d, V_2d;
+    Eigen::MatrixXd V_3d, V_2d, V_2di;
     Eigen::MatrixXi F, F0;
 
     /*
@@ -232,6 +232,8 @@ int main(int argc, char *argv[]){
     V_3d *= scale_f;
     V_2d *= scale_f;
 
+    V_2di = V_2d;
+
     //Eigen::MatrixXi E;
     //igl::edges(F, E);
 
@@ -267,10 +269,11 @@ int main(int argc, char *argv[]){
     printMatStats("Strain V", strain_v);
     printMatStats("Shear", shear);
 
-    
+    BaryOptimizer bo;    
 
     // --- VISUALIZATION ---
 
+    bool update_v2d = false;
     
     viewer.data().set_mesh(V_3d, F);
 
@@ -392,12 +395,49 @@ int main(int argc, char *argv[]){
             ImGui::Separator();
 
             if (ImGui::Button("Local global test", ImVec2(-1, 0))){
-                V_2d = localGlobal(V_2d, V_3d, F);
-                viewer.data().set_mesh(V_2d, F);
+                for (int i=0; i<30; i++){
+                    V_2d = bo.localGlobal(V_2d, V_3d, F);
+                }
+                if (update_v2d) viewer.data().set_mesh(V_2d, F);
                 viewer.data().set_uv(V_2d);
                 //Eigen::VectorXd E = paramLocalGlobal(V_3d, F, V_2d, 0);
                 //viewer.data().set_colors(fromVectorToColors(E));
             }
+
+            float strech_f = bo.stretch_coeff_;
+            if (ImGui::SliderFloat("Stretch factor", &strech_f, 0.0f, 50.0f, "%.3f")){
+                V_2d = V_2di;
+                bo.stretch_coeff_ = strech_f;
+                for (int i=0; i<1; i++){
+                    V_2d = bo.localGlobal(V_2d, V_3d, F);
+                }
+                if (update_v2d) viewer.data().set_mesh(V_2d, F);
+                viewer.data().set_uv(V_2d);
+            }
+
+            float angle_f = bo.angle_coeff_;
+            if (ImGui::SliderFloat("Angles factor", &angle_f, 0.0f, 15.0f, "%.3f")){
+                V_2d = V_2di;
+                bo.angle_coeff_ = angle_f;
+                for (int i=0; i<1; i++){
+                    V_2d = bo.localGlobal(V_2d, V_3d, F);
+                }
+                if (update_v2d) viewer.data().set_mesh(V_2d, F);
+                viewer.data().set_uv(V_2d);
+            }
+
+            float edges_f = bo.edges_coeff_;
+            if (ImGui::SliderFloat("Edges factor", &edges_f, 0.0f, 10.0f, "%.3f")){
+                V_2d = V_2di;
+                bo.edges_coeff_ = edges_f;
+                for (int i=0; i<1; i++){
+                    V_2d = bo.localGlobal(V_2d, V_3d, F);
+                }
+                if (update_v2d) viewer.data().set_mesh(V_2d, F);
+                viewer.data().set_uv(V_2d);
+            }
+
+            ImGui::Checkbox("Update V_2d", &update_v2d);
 
             ImGui::End();
         }
@@ -407,7 +447,7 @@ int main(int argc, char *argv[]){
     //updateViz();
 
     viewer.data().set_colors(Eigen::RowVector3d(1.0, 1.0, 1.0));
-    viewer.data().line_width = 5;
+    viewer.data().line_width = 3;
     viewer.data().show_lines = false;
     //viewer.data().point_size = 10;
     //viewer.core().orthographic = true;
