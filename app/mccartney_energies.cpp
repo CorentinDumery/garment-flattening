@@ -137,7 +137,7 @@ int main(int argc, char *argv[]){
     Eigen::MatrixXd V_3d, V_2d, V_2di;
     Eigen::MatrixXi F, F0;
 
-    //*
+    /*
     igl::readOBJ("../data/dress_front_cut.obj", V_3d, F0);
     igl::readOBJ("../data/flat_dress.obj", V_2d, F);
     //*/
@@ -145,6 +145,11 @@ int main(int argc, char *argv[]){
     /*
     igl::readOBJ("../data/semisphere_uncut.obj", V_3d, F0);
     igl::readOBJ("../data/semisphere_uncut_flat.obj", V_2d, F);
+    //*/
+
+    //*
+    igl::readOBJ("../data/mark_skirt_back_left_cut.obj", V_3d, F0);
+    igl::readOBJ("../data/mark_skirt_back_left_cut_flat.obj", V_2d, F);
     //*/
 
 
@@ -230,6 +235,7 @@ int main(int argc, char *argv[]){
     //*/
 
     double scale_f = 1.0;
+    float scale_uv = 1.0;
     V_3d *= scale_f;
     V_2d *= scale_f;
 
@@ -275,10 +281,11 @@ int main(int argc, char *argv[]){
     // --- VISUALIZATION ---
 
     bool update_v2d = false;
+    int n_iterations = 1;
     
     viewer.data().set_mesh(V_3d, F);
 
-    viewer.data().set_uv(V_2d);
+    viewer.data().set_uv(V_2d * scale_uv);
     viewer.data().show_texture = true;
     viewer.data().set_texture(R,G,B);
 
@@ -353,6 +360,10 @@ int main(int argc, char *argv[]){
 
                 ImGui::SliderFloat("Light factor", &viewer.core().lighting_factor, 0.0f, 5.0f, "%.3f");
                 
+                if (ImGui::SliderFloat("Scale fibers", &scale_uv, 0.1f, 3.0f, "%.3f")){
+                    viewer.data().set_uv(V_2d * scale_uv);
+                }
+                
             }
 
             ImGui::Separator();
@@ -395,58 +406,57 @@ int main(int argc, char *argv[]){
             
             ImGui::Separator();
 
-            if (ImGui::Button("Local global test", ImVec2(-1, 0))){
-                for (int i=0; i<30; i++){
+            if (ImGui::SliderInt("# iterations", &n_iterations, 1, 100, "%.3f")){
+                V_2d = V_2di;
+                for (int i=0; i<n_iterations; i++){
                     V_2d = bo.localGlobal(V_2d, V_3d, F);
                 }
                 if (update_v2d) viewer.data().set_mesh(V_2d, F);
-                viewer.data().set_uv(V_2d);
-                //Eigen::VectorXd E = paramLocalGlobal(V_3d, F, V_2d, 0);
-                //viewer.data().set_colors(fromVectorToColors(E));
+                viewer.data().set_uv(V_2d * scale_uv);
             }
 
             float strech_f = bo.stretch_coeff_;
-            if (ImGui::SliderFloat("Stretch factor", &strech_f, 0.0f, 50.0f, "%.3f")){
+            if (ImGui::SliderFloat("Stretch penalty", &strech_f, 0.0f, 50.0f, "%.3f")){
                 V_2d = V_2di;
                 bo.stretch_coeff_ = strech_f;
-                for (int i=0; i<1; i++){
+                for (int i=0; i<n_iterations; i++){
                     V_2d = bo.localGlobal(V_2d, V_3d, F);
                 }
                 if (update_v2d) viewer.data().set_mesh(V_2d, F);
-                viewer.data().set_uv(V_2d);
+                viewer.data().set_uv(V_2d * scale_uv);
             }
 
-            float angle_f = bo.angle_coeff_;
+            /*float angle_f = bo.angle_coeff_;
             if (ImGui::SliderFloat("Angles factor", &angle_f, 0.0f, 15.0f, "%.3f")){
                 V_2d = V_2di;
                 bo.angle_coeff_ = angle_f;
-                for (int i=0; i<1; i++){
+                for (int i=0; i<n_iterations; i++){
                     V_2d = bo.localGlobal(V_2d, V_3d, F);
                 }
                 if (update_v2d) viewer.data().set_mesh(V_2d, F);
-                viewer.data().set_uv(V_2d);
-            }
+                viewer.data().set_uv(V_2d * scale_uv);
+            }*/
 
             float edges_f = bo.edges_coeff_;
-            if (ImGui::SliderFloat("Edges factor", &edges_f, 0.0f, 10.0f, "%.3f")){
+            if (ImGui::SliderFloat("Edges penalty", &edges_f, 0.0f, 10.0f, "%.3f")){
                 V_2d = V_2di;
                 bo.edges_coeff_ = edges_f;
-                for (int i=0; i<1; i++){
+                for (int i=0; i<n_iterations; i++){
                     V_2d = bo.localGlobal(V_2d, V_3d, F);
                 }
                 if (update_v2d) viewer.data().set_mesh(V_2d, F);
-                viewer.data().set_uv(V_2d);
+                viewer.data().set_uv(V_2d * scale_uv);
             }
 
             float selected_f = bo.selected_coeff_;
-            if (ImGui::SliderFloat("selected factor", &selected_f, 0.0f, 100.0f, "%.3f")){
+            if (ImGui::SliderFloat("Sel. align penalty", &selected_f, 0.0f, 100.0f, "%.3f")){
                 V_2d = V_2di;
                 bo.selected_coeff_ = selected_f;
-                for (int i=0; i<1; i++){
+                for (int i=0; i<n_iterations; i++){
                     V_2d = bo.localGlobal(V_2d, V_3d, F);
                 }
                 if (update_v2d) viewer.data().set_mesh(V_2d, F);
-                viewer.data().set_uv(V_2d);
+                viewer.data().set_uv(V_2d * scale_uv);
             }
 
             ImGui::Checkbox("Update V_2d", &update_v2d);
