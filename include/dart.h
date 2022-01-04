@@ -1,4 +1,4 @@
-
+#pragma once
 #include <Eigen/Core>
 #include <vector>
 #include <iostream>
@@ -10,6 +10,7 @@ protected:
     // TODO remove symmetry_axis: this class is position agnostic 
 
 public:
+    Dart() {};
     Dart(const std::vector<int>& selected
          //const Eigen::MatrixXd& F
          ) : v_ids_(selected) {
@@ -21,6 +22,8 @@ public:
 
 class SimpleDart : public Dart {
 public:
+
+    SimpleDart() {};
     SimpleDart(const std::vector<int>& selected)
         : Dart(selected) {
         if (selected.size() % 2 == 0) std::cout << "ERROR: simple darts should be odd sized" << std::endl;
@@ -33,6 +36,7 @@ public:
     int start_id() const {return v_ids_[0];}
     int end() const {return v_ids_.size() - 1;}
     int end_id() const {return v_ids_[v_ids_.size() - 1];}
+    int v_id(int i) const {return v_ids_[i];}
 
     int symmetric(int id1) const {
         if (id1 > tip()) return end() - id1;
@@ -143,15 +147,21 @@ public:
         return points_2d;
     };
 
-    void snapSymmetric(Eigen::MatrixXd& V_2d,
-                       const Eigen::RowVector3d& sym_axis) const {
-
+    Eigen::MatrixXd computeSymmetryTargets(const Eigen::MatrixXd& V_2d,
+                                           const Eigen::RowVector3d& sym_axis) const {
         Eigen::MatrixXd sym_p = getSymmetricPoints(V_2d, sym_axis);
 
         Eigen::MatrixXd new_pos(size(), 2);
         for (int i=0; i<size(); i++){
             new_pos.row(i) = (V_2d.row(v_ids_[i]) + sym_p.row(i))/2.0;
         }
+
+        return new_pos;
+    }
+
+    void snapSymmetric(Eigen::MatrixXd& V_2d,
+                       const Eigen::RowVector3d& sym_axis) const {
+        Eigen::MatrixXd new_pos = computeSymmetryTargets(V_2d, sym_axis);
 
         for (int i=0; i<size(); i++){
             V_2d.row(v_ids_[i]) = new_pos.row(i);

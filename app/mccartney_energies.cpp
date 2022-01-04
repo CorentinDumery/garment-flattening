@@ -16,6 +16,7 @@
 #include "mccartney.h"
 #include "procustes.h"
 #include "bary_optimizer.h"
+#include "dart.h"
 
 igl::opengl::glfw::Viewer viewer; // TODO MOVE
 
@@ -234,6 +235,11 @@ int main(int argc, char *argv[]){
     F0 = F;
     //*/
 
+    if (argc > 1){
+        igl::readOBJ("../data/"+ std::string(argv[1]) + ".obj", V_3d, F0);
+        igl::readOBJ("../data/"+ std::string(argv[1]) + "_flat.obj", V_2d, F);
+    }
+
     double scale_f = 1.0;
     float scale_uv = 1.0;
     V_3d *= scale_f;
@@ -276,7 +282,25 @@ int main(int argc, char *argv[]){
     printMatStats("Strain V", strain_v);
     printMatStats("Shear", shear);
 
-    BaryOptimizer bo;    
+    BaryOptimizer bo;
+
+
+    std::vector<int> dart1_ordered_vs = {90, 64, 65, 116, 168, 162, 119, 16, 187, 185, 188};
+    std::vector<int> dart2_ordered_vs = {129, 128, 126, 117, 121, 21, 103, 96, 95, 133, 124};
+    std::vector<std::vector<int>> ordered_cuts = {dart1_ordered_vs, dart2_ordered_vs};
+
+    std::vector<SimpleDart> simple_darts;
+    for (int i=0; i<ordered_cuts.size(); i++){
+        std::vector<int> cut = ordered_cuts[i]; 
+        if (cut.size() % 2 == 0) continue;
+        SimpleDart sd(cut);
+        sd.print();
+        simple_darts.push_back(sd);
+    }
+
+    bo.setDarts(simple_darts);
+
+
 
     // --- VISUALIZATION ---
 
@@ -296,7 +320,15 @@ int main(int argc, char *argv[]){
     auto updateViz = [&](){
         viewer.data().clear_edges();
         viewer.data().clear_points();
-        
+
+        /*for (int dart_id=0; dart_id<ordered_cuts.size(); dart_id++){
+            std::vector<int> dart = ordered_cuts[dart_id];
+            Eigen::MatrixXd dart_points(dart.size(), 3);
+            for (int i=0; i<dart.size(); i++){
+                dart_points.row(i) = V_2d.row(dart[i]);
+            }
+            viewer.data().add_points(dart_points, Eigen::RowVector3d(0.0, 0.0, 0.0));
+        }*/
     };
 
     //helper function for menu
@@ -406,7 +438,7 @@ int main(int argc, char *argv[]){
             
             ImGui::Separator();
 
-            if (ImGui::SliderInt("# iterations", &n_iterations, 1, 100, "%.3f")){
+            if (ImGui::SliderInt("# iterations", &n_iterations, 0, 80, "%.3f")){
                 V_2d = V_2di;
                 for (int i=0; i<n_iterations; i++){
                     V_2d = bo.localGlobal(V_2d, V_3d, F);
@@ -459,6 +491,17 @@ int main(int argc, char *argv[]){
                 viewer.data().set_uv(V_2d * scale_uv);
             }
 
+            float dart_sym_f = bo.dart_sym_coeff_;
+            if (ImGui::SliderFloat("Dart sym weight", &dart_sym_f, 0.0f, 10.0f, "%.3f")){
+                V_2d = V_2di;
+                bo.dart_sym_coeff_ = dart_sym_f;
+                for (int i=0; i<n_iterations; i++){
+                    V_2d = bo.localGlobal(V_2d, V_3d, F);
+                }
+                if (update_v2d) viewer.data().set_mesh(V_2d, F);
+                viewer.data().set_uv(V_2d * scale_uv);
+            }
+
             ImGui::Checkbox("Update V_2d", &update_v2d);
 
             ImGui::End();
@@ -498,7 +541,7 @@ int main(int argc, char *argv[]){
         return false;
     };
 
-    //updateViz();
+    updateViz();
 
     viewer.data().set_colors(Eigen::RowVector3d(1.0, 1.0, 1.0));
     viewer.data().line_width = 3;

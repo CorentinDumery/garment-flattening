@@ -188,6 +188,41 @@ void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eig
     }
 }
 
+void BaryOptimizer::equationsFromDarts(const Eigen::MatrixXd& V_2d,
+                                       const Eigen::MatrixXi& F,
+                                       std::vector<Eigen::Triplet<double>>& triplet_list,
+                                       std::vector<double>& target_vector,
+                                       std::vector<double>& weight_vector){
+    for (auto dart: simple_darts_){
+        //if (dart.size() < 3) continue;
+        Eigen::RowVector3d sym_axis = dart.computeSymmetryAxis(V_2d);
+        Eigen::MatrixXd targets = dart.computeSymmetryTargets(V_2d, sym_axis);
+
+        if (dart.size() != targets.rows()){ 
+            std::cout << "Error in equationsFromDarts" << std::endl;
+        }
+
+        for (int i=0; i<dart.size(); i++){
+            int v_id = dart.v_id(i);
+
+            double target_u = targets(i, 0);
+            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * v_id, 1.0));
+            target_vector.push_back(target_u);
+            if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
+                weight_vector.push_back(dart_sym_coeff_);
+            next_equation_id_ ++;
+
+            double target_v = targets(i, 1);
+            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * v_id + 1, 1.0));
+            target_vector.push_back(target_v);
+            if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
+                weight_vector.push_back(dart_sym_coeff_);
+            next_equation_id_ ++;
+        }
+        
+    }
+}
+
 void BaryOptimizer::makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
                                      const Eigen::MatrixXi& F,
                                      Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b,
@@ -228,6 +263,15 @@ void BaryOptimizer::makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::M
         n_triplets += 2;
     }
 
+    if (enable_dart_sym_eqs_){
+        int dart_points = 0; // points with dart target position, i.e. all on dart except tip
+        for (int i=0; i<simple_darts_.size(); i++){
+            dart_points += simple_darts_[i].size(); // -1;
+        }
+        n_equations += dart_points * 2;
+        n_triplets += dart_points * 2;
+    }
+
     std::vector<Eigen::Triplet<double>> triplet_list; // Perf: get rid of std::vector
     std::vector<double> target_vector; // Perf: get rid of std::vector
     triplet_list.reserve(n_triplets);
@@ -262,6 +306,10 @@ void BaryOptimizer::makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::M
         if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
             weight_vector.push_back(selected_coeff_);
         next_equation_id_ ++;
+    }
+
+    if (enable_dart_sym_eqs_){
+        equationsFromDarts(V_2d, F, triplet_list, target_vector, weight_vector);
     }
 
 

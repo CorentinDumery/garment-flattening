@@ -4,6 +4,8 @@
 #include <Eigen/Sparse>
 #include <vector>
 
+#include "dart.h"
+
 typedef Eigen::DiagonalMatrix<double, Eigen::Dynamic> DiagonalMatrixXd;
 
 // Interesting discussion on Eigen performance for LSCM:
@@ -21,6 +23,10 @@ public:
                                 const Eigen::MatrixXi& F);
 
     void setSelectedVertices(std::vector<int> selected_vs) {selected_vs_ = selected_vs;};
+    void setDarts(std::vector<SimpleDart> simple_darts) {
+        for (SimpleDart d: simple_darts)
+            simple_darts_.push_back(d);
+    };
 
     // Config parameters
     bool enable_stretch_eqs_ = true;
@@ -32,17 +38,26 @@ public:
     double edges_coeff_ = 0.001;
     bool enable_selected_eqs_ = true;
     double selected_coeff_ = 1.0;
+    bool enable_dart_sym_eqs_ = true;
+    double dart_sym_coeff_ = 1.0;
 
 private:
 
     int next_equation_id_ = 0;
     std::vector<int> selected_vs_;
+    std::vector<SimpleDart> simple_darts_;
     
     void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
                                const Eigen::MatrixXi& F, int f_id,
                                std::vector<Eigen::Triplet<double>>& triplet_list,
                                std::vector<double>& target_vector,
                                std::vector<double>& weight_vector);
+
+    void equationsFromDarts(const Eigen::MatrixXd& V_2d,
+                            const Eigen::MatrixXi& F,
+                            std::vector<Eigen::Triplet<double>>& triplet_list,
+                            std::vector<double>& target_vector,
+                            std::vector<double>& weight_vector);
 
     void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
                       const Eigen::MatrixXi& F,
