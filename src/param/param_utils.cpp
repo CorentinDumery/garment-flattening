@@ -60,13 +60,19 @@ Eigen::MatrixXd move3Dto2D(const Eigen::MatrixXd& V_tri){
 }
 
 // TODO Matrix3d ?
-Eigen::MatrixXd makeTriPoints(const Eigen::MatrixXd V, const Eigen::MatrixXi F, int f_id){
+Eigen::MatrixXd makeTriPoints(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int f_id){
     Eigen::MatrixXd p(3,3);
     p.row(0) = V.row(F(f_id,0));
     p.row(1) = V.row(F(f_id,1));
     p.row(2) = V.row(F(f_id,2));
     return p;
 };
+
+void makeTriPoints(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int f_id, Eigen::MatrixXd& out){
+    out.row(0) = V.row(F(f_id,0));
+    out.row(1) = V.row(F(f_id,1));
+    out.row(2) = V.row(F(f_id,2));
+}
 
 Eigen::VectorXd vertices2dToVector(const Eigen::MatrixXd& V){ // TODO put somewhere else
     Eigen::VectorXd res(2 * V.rows()); // TODO faster?

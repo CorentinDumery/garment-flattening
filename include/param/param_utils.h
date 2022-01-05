@@ -17,7 +17,8 @@ void procustes(const Eigen::MatrixXd& points1, // to
                Eigen::VectorXd& T_est);
 
 // TODO Matrix3d ?
-Eigen::MatrixXd makeTriPoints(const Eigen::MatrixXd V, const Eigen::MatrixXi F, int f_id);
+Eigen::MatrixXd makeTriPoints(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int f_id);
+void makeTriPoints(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int f_id, Eigen::MatrixXd& out);
 
 
 // Move triangle from 3D (Z != 0) to 2D (Z = 0), with

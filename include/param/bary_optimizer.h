@@ -65,6 +65,8 @@ private:
 
     Eigen::VectorXd b;
     DiagonalMatrixXd W; 
+    Eigen::MatrixXd V_tri_2d;
+    Eigen::MatrixXd V_tri_3d;
 
     std::vector<Eigen::Triplet<double>> triplet_list; // Perf: get rid of std::vector
     std::vector<double> target_vector; // Perf: get rid of std::vector, replace with b
@@ -91,5 +93,8 @@ private:
     bool canUseSelectedEquation(){
         return enable_selected_eqs_ && selected_vs_.size() >= 2 && selected_vs_[0] >= 0 && selected_vs_[1] >= 0;
     }
+    
+    int edges_eq_time = 0;
+    int stretch_shear_eq_time = 0;
     
 };

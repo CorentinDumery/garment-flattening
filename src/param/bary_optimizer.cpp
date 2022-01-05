@@ -94,6 +94,8 @@ BaryOptimizer::BaryOptimizer(int n_faces){
     weight_vector.resize(n_equations_);
     b.resize(n_equations_);
     W.resize(n_equations_);
+    V_tri_2d.resize(3,3);
+    V_tri_3d.resize(3,3);
 }
 
 void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
@@ -105,26 +107,30 @@ void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eig
     // each triangle gives us 2 equations:
     // one target u and one target v
 
-    Eigen::MatrixXd V_tri_2d = makeTriPoints(V_2d, F, f_id); // Could be removed for perf
-    Eigen::MatrixXd V_tri_3d = makeTriPoints(V_3d, F, f_id);
+    #ifdef LOCALGLOBAL_TIMING
+    steady_clock::time_point pre_stretch_shear_eqs = steady_clock::now();
+    #endif
 
-    Eigen::RowVectorXd D = (V_tri_2d.row(0) + V_tri_2d.row(1) + V_tri_2d.row(2))/3.0; // centroid
+    //Eigen::MatrixXd V_tri_2d = makeTriPoints(V_2d, F, f_id); // Could be removed for perf
+    //Eigen::MatrixXd V_3d.row(F(f_id, ke)TriPoints(V_3d, F, f_id);
+
+    Eigen::RowVectorXd D = (V_2d.row(F(f_id, 0)) + V_2d.row(F(f_id, 1)) + V_2d.row(F(f_id, 2)))/3.0; // centroid
     Eigen::Vector3d D_bary(0.333333, 0.333333, 0.333333);
     Eigen::RowVectorXd DU = D;
     DU(0) += 1.0;
-    Eigen::Vector3d DU_bary = barycentricCoords(DU, V_tri_2d.row(0), V_tri_2d.row(1), V_tri_2d.row(2));
+    Eigen::Vector3d DU_bary = barycentricCoords(DU, V_2d.row(F(f_id, 0)), V_2d.row(F(f_id, 1)), V_2d.row(F(f_id, 2)));
     Eigen::RowVectorXd DV = D;
     DV(1) += 1.0;
-    Eigen::Vector3d DV_bary = barycentricCoords(DV, V_tri_2d.row(0), V_tri_2d.row(1), V_tri_2d.row(2));
+    Eigen::Vector3d DV_bary = barycentricCoords(DV, V_2d.row(F(f_id, 0)), V_2d.row(F(f_id, 1)), V_2d.row(F(f_id, 2)));
     Eigen::RowVectorXd DUV = D; // PERF: deduce DUV eq based on first two?
     DUV(0) += 1.0;
     DUV(1) += 1.0;
-    Eigen::Vector3d DUV_bary = barycentricCoords(DUV, V_tri_2d.row(0), V_tri_2d.row(1), V_tri_2d.row(2));
+    Eigen::Vector3d DUV_bary = barycentricCoords(DUV, V_2d.row(F(f_id, 0)), V_2d.row(F(f_id, 1)), V_2d.row(F(f_id, 2)));
 
-    Eigen::RowVectorXd Dp = D_bary(0) * V_tri_3d.row(0) + D_bary(1) * V_tri_3d.row(1) + D_bary(2) * V_tri_3d.row(2);
-    Eigen::RowVectorXd DUp = DU_bary(0) * V_tri_3d.row(0) + DU_bary(1) * V_tri_3d.row(1) + DU_bary(2) * V_tri_3d.row(2);
-    Eigen::RowVectorXd DVp = DV_bary(0) * V_tri_3d.row(0) + DV_bary(1) * V_tri_3d.row(1) + DV_bary(2) * V_tri_3d.row(2);
-    Eigen::RowVectorXd DUVp = DUV_bary(0) * V_tri_3d.row(0) + DUV_bary(1) * V_tri_3d.row(1) + DUV_bary(2) * V_tri_3d.row(2);
+    Eigen::RowVectorXd Dp = D_bary(0) * V_3d.row(F(f_id, 0)) + D_bary(1) * V_3d.row(F(f_id, 1)) + D_bary(2) * V_3d.row(F(f_id, 2));
+    Eigen::RowVectorXd DUp = DU_bary(0) * V_3d.row(F(f_id, 0)) + DU_bary(1) * V_3d.row(F(f_id, 1)) + DU_bary(2) * V_3d.row(F(f_id, 2));
+    Eigen::RowVectorXd DVp = DV_bary(0) * V_3d.row(F(f_id, 0)) + DV_bary(1) * V_3d.row(F(f_id, 1)) + DV_bary(2) * V_3d.row(F(f_id, 2));
+    Eigen::RowVectorXd DUVp = DUV_bary(0) * V_3d.row(F(f_id, 0)) + DUV_bary(1) * V_3d.row(F(f_id, 1)) + DUV_bary(2) * V_3d.row(F(f_id, 2));
 
     double target_u = (DUp - Dp).norm();
     double target_v = (DVp - Dp).norm();
@@ -197,11 +203,23 @@ void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eig
         next_equation_id_ ++;
     }
 
+    #ifdef LOCALGLOBAL_TIMING
+    steady_clock::time_point pre_edges_eq = steady_clock::now();
+    #endif
+
     if (enable_edges_eqs_){
-        V_tri_3d = move3Dto2D(V_tri_3d);
+        //Eigen::MatrixXd V_tri_2d = makeTriPoints(V_2d, F, f_id);
+        //Eigen::MatrixXd V_tri_3d = makeTriPoints(V_3d, F, f_id);
+        makeTriPoints(V_2d, F, f_id, V_tri_2d); // 5 ms
+        makeTriPoints(V_3d, F, f_id, V_tri_3d); // 5 ms
+
+
+        V_tri_3d = move3Dto2D(V_tri_3d); // 1 ms
         Eigen::MatrixXd R_est;
         Eigen::VectorXd T_est;
-        procustes(V_tri_2d, V_tri_3d, R_est, T_est); 
+        procustes(V_tri_2d, V_tri_3d, R_est, T_est); // 4 ms 
+        
+    
 
         //Eigen::MatrixXd p1 = V_tri_2d; // TODO get rid of extra notation
         Eigen::MatrixXd p2 = V_tri_3d;
@@ -237,6 +255,12 @@ void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eig
             next_equation_id_ ++;
         }
     }
+
+    #ifdef LOCALGLOBAL_TIMING
+    steady_clock::time_point post_edges_eq = steady_clock::now();
+    stretch_shear_eq_time += duration_cast<microseconds>(pre_edges_eq - pre_stretch_shear_eqs).count();
+    edges_eq_time += duration_cast<microseconds>(post_edges_eq - pre_edges_eq).count();
+    #endif
 }
 
 void BaryOptimizer::equationsFromDarts(const Eigen::MatrixXd& V_2d,
@@ -282,6 +306,10 @@ void BaryOptimizer::makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::M
                                      DiagonalMatrixXd& W2){
 
     next_equation_id_ = 0;
+    #ifdef LOCALGLOBAL_TIMING
+    edges_eq_time = 0;
+    stretch_shear_eq_time = 0;
+    #endif
 
     triplet_list.clear(); // empty vector, but keeping memory size
     //target_vector.clear(); // Perf: get rid of std::vector
@@ -486,6 +514,8 @@ Eigen::MatrixXd BaryOptimizer::localGlobal(const Eigen::MatrixXd& V_2d, const Ei
     int solve_time = duration_cast<microseconds>(post_solve - pre_solve).count();
     int post_time = duration_cast<microseconds>(post_localglobal - post_solve).count();
     std::cout << "Precomp time : " << pre_time << " [µs]" << std::endl;
+    std::cout << "\t incl. stretch_shear_eq_time: " << stretch_shear_eq_time << " [µs]" << std::endl;
+    std::cout << "\t incl. edges_eq_time: " << edges_eq_time << " [µs]" << std::endl;
     std::cout << "Solving time : " << solve_time << " [µs]" << std::endl;
     std::cout << "Postcomp time: " << post_time << " [µs]" << std::endl << std::endl;
     #endif
