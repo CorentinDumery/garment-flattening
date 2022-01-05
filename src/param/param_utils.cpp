@@ -1,4 +1,4 @@
-#include "procustes.h"
+#include "param/param_utils.h"
 
 #include <Eigen/SVD>
 #include <Eigen/LU>
@@ -67,3 +67,29 @@ Eigen::MatrixXd makeTriPoints(const Eigen::MatrixXd V, const Eigen::MatrixXi F, 
     p.row(2) = V.row(F(f_id,2));
     return p;
 };
+
+Eigen::VectorXd vertices2dToVector(const Eigen::MatrixXd& V){ // TODO put somewhere else
+    Eigen::VectorXd res(2 * V.rows()); // TODO faster?
+    for (int i=0; i<V.rows(); i++){
+        res(2 * i) = V(i,0);
+        res(2 * i + 1) = V(i,1);
+    }
+    return res;
+}
+
+Eigen::Vector3d barycentricCoords(const Eigen::RowVector3d& p, const Eigen::RowVector3d& a, 
+                                         const Eigen::RowVector3d& b, const Eigen::RowVector3d& c){ // TODO put somewhere else
+    Eigen::RowVector3d v0 = b - a;
+    Eigen::RowVector3d v1 = c - a;
+    Eigen::RowVector3d v2 = p - a;
+    float d00 = v0.dot(v0);
+    float d01 = v0.dot(v1);
+    float d11 = v1.dot(v1);
+    float d20 = v2.dot(v0);
+    float d21 = v2.dot(v1);
+    float denom = d00 * d11 - d01 * d01;
+    double v = (d11 * d20 - d01 * d21) / denom;
+    double w = (d00 * d21 - d01 * d20) / denom;
+    double u = 1.0f - v - w;
+    return Eigen::Vector3d(u, v, w);
+}

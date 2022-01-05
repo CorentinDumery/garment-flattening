@@ -2,7 +2,7 @@
 #include <Eigen/Core>
 #include <igl/barycentric_coordinates.h>
 #include "utils.h"
-#include "procustes.h"
+#include "param/param_utils.h"
 
 void computeFrameErrors(const Eigen::MatrixXd& V_2di, 
                         const Eigen::MatrixXd& V_3di,

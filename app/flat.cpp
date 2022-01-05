@@ -18,7 +18,7 @@
 #include "implot.h"
 #endif
 
-#include "dart.h"
+#include "param/dart.h"
 
 // SCAF
 #include <igl/triangle/scaf.h>

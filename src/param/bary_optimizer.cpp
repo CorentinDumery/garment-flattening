@@ -1,12 +1,15 @@
-#include "bary_optimizer.h"
+#include "param/bary_optimizer.h"
 
 #include <Eigen/Core>
 #include <iostream>
 
 #include <Eigen/IterativeLinearSolvers> // https://forum.kde.org/viewtopic.php?f=74&t=125165
 
+#include "param/dart.h"
+#include "param/param_utils.h"
+
 //#define LOCALGLOBAL_DEBUG
-//#define LOCALGLOBAL_TIMING
+#define LOCALGLOBAL_TIMING
 //#define LOCALGLOBAL_DEBUG_SMALL // print full matrices, should be small
 
 #ifdef LOCALGLOBAL_TIMING
@@ -16,37 +19,81 @@ using std::chrono::duration_cast;
 using std::chrono::microseconds;
 #endif
 
-#include "procustes.h" // needed for: makeTriPoints
-
 #define USE_WEIGTHS_IN_LINEAR_SYSTEM true
 
-Eigen::VectorXd vertices2dToVector(const Eigen::MatrixXd& V){ // TODO put somewhere else
-    Eigen::VectorXd res(2 * V.rows()); // TODO faster?
-    for (int i=0; i<V.rows(); i++){
-        res(2 * i) = V(i,0);
-        res(2 * i + 1) = V(i,1);
-    }
-    return res;
-}
+BaryOptimizer::BaryOptimizer(int n_faces){
+    // Sparse conventions:
+    // we have n target equations
+    // and vector x of V 2D vertices
+    // vertex i has its u coord in x(2*i) and its v coord in x(2*i+1)
+    // M(equation, 2*v_id);
 
-// Compute barycentric coordinates (u, v, w) for
-// point p with respect to triangle (a, b, c)
-// credits https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
-Eigen::Vector3d barycentricCoords(const Eigen::RowVector3d& p, const Eigen::RowVector3d& a, 
-                                         const Eigen::RowVector3d& b, const Eigen::RowVector3d& c){ // TODO put somewhere else
-    Eigen::RowVector3d v0 = b - a;
-    Eigen::RowVector3d v1 = c - a;
-    Eigen::RowVector3d v2 = p - a;
-    float d00 = v0.dot(v0);
-    float d01 = v0.dot(v1);
-    float d11 = v1.dot(v1);
-    float d20 = v2.dot(v0);
-    float d21 = v2.dot(v1);
-    float denom = d00 * d11 - d01 * d01;
-    double v = (d11 * d20 - d01 * d21) / denom;
-    double w = (d00 * d21 - d01 * d20) / denom;
-    double u = 1.0f - v - w;
-    return Eigen::Vector3d(u, v, w);
+    n_equations_ = 0; // Predict size for memory allocation
+    n_triplets_ = 0;
+
+    if (enable_stretch_eqs_) {
+        n_equations_ += 2 * n_faces;
+        n_triplets_ += 3 * 2 * n_faces;
+
+        #ifdef LOCALGLOBAL_DEBUG
+        std::cout << "stretch eqs: " << 2 * n_faces << std::endl;
+        #endif
+    }
+
+    if (enable_angle_eqs_) {
+        n_equations_ += 2 * n_faces;
+        n_triplets_ += 3 * 2 * n_faces; 
+
+        #ifdef LOCALGLOBAL_DEBUG
+        std::cout << "angle  eqs: " << 2 * n_faces << std::endl;
+        #endif
+    }
+
+    if (enable_set_seed_eqs_) {
+        n_equations_ += 2;
+        n_triplets_ += 2;
+
+        #ifdef LOCALGLOBAL_DEBUG
+        std::cout << "seed   eqs: " << 2 << std::endl;
+        #endif
+    }
+
+    if (enable_edges_eqs_){
+        n_equations_ += 6 * n_faces;
+        n_triplets_ += 2 * 2 * n_faces;
+
+        #ifdef LOCALGLOBAL_DEBUG
+        std::cout << "edges  eqs: " << 6 * n_faces << std::endl;
+        #endif
+    }
+
+    if (enable_selected_eqs_){ //canUseSelectedEquation()){
+        n_equations_ += 1;
+        n_triplets_ += 2;
+
+        #ifdef LOCALGLOBAL_DEBUG
+        std::cout << "selec eqs: " << 6 * n_faces << std::endl;
+        #endif
+    }
+
+    if (enable_dart_sym_eqs_){
+        int dart_points = 0; // points with dart target position, i.e. all on dart except tip
+        for (int i=0; i<simple_darts_.size(); i++){
+            dart_points += simple_darts_[i].size(); // -1;
+        }
+        n_equations_ += dart_points * 2;
+        n_triplets_ += dart_points * 2;
+
+        #ifdef LOCALGLOBAL_DEBUG
+        std::cout << "dart sym eqs: " << dart_points * 2 << std::endl;
+        #endif
+    }
+
+    triplet_list.resize(n_triplets_);
+    target_vector.resize(n_equations_);
+    weight_vector.resize(n_equations_);
+    b.resize(n_equations_);
+    W.resize(n_equations_);
 }
 
 void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
@@ -104,9 +151,10 @@ void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eig
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 1), DU_bary(1) - D_bary(1)));
         // Cu
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 2), DU_bary(2) - D_bary(2)));
-        target_vector.push_back(target_u);
-        if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-            weight_vector.push_back(stretch_coeff_);
+        //target_vector.push_back(target_u);
+        b(next_equation_id_) = target_u;
+        //weight_vector.push_back(stretch_coeff_);
+        W.diagonal()[next_equation_id_] = stretch_coeff_;
         next_equation_id_ ++;
 
         // Av
@@ -115,9 +163,10 @@ void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eig
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 1) + 1, DV_bary(1) - D_bary(1)));
         // Cv
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 2) + 1, DV_bary(2) - D_bary(2)));
-        target_vector.push_back(target_v);
-        if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-            weight_vector.push_back(stretch_coeff_);
+        //target_vector.push_back(target_v);
+        b(next_equation_id_) = target_v;
+        //weight_vector.push_back(stretch_coeff_);
+        W.diagonal()[next_equation_id_] = stretch_coeff_;
         next_equation_id_ ++;
     }
 
@@ -129,9 +178,10 @@ void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eig
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 1), DUV_bary(1) - D_bary(1)));
         // C_uv_u
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 2), DUV_bary(2) - D_bary(2)));
-        target_vector.push_back(target_uv_u);
-        if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-            weight_vector.push_back(angle_coeff_);
+        //target_vector.push_back(target_uv_u);
+        b(next_equation_id_) = target_uv_u;
+        //weight_vector.push_back(angle_coeff_);
+        W.diagonal()[next_equation_id_] = angle_coeff_;
         next_equation_id_ ++;
 
         // A_uv_v
@@ -140,9 +190,10 @@ void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eig
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 1) + 1, DUV_bary(1) - D_bary(1)));
         // C_uv_v
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 2) + 1, DUV_bary(2) - D_bary(2)));
-        target_vector.push_back(target_uv_v);
-        if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-            weight_vector.push_back(angle_coeff_);
+        //target_vector.push_back(target_uv_v);
+        b(next_equation_id_) = target_uv_v;
+        //weight_vector.push_back(angle_coeff_);
+        W.diagonal()[next_equation_id_] = angle_coeff_;
         next_equation_id_ ++;
     }
 
@@ -150,9 +201,7 @@ void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eig
         V_tri_3d = move3Dto2D(V_tri_3d);
         Eigen::MatrixXd R_est;
         Eigen::VectorXd T_est;
-        procustes(V_tri_2d, V_tri_3d, R_est, T_est);
-
-        // TODO check assumptions
+        procustes(V_tri_2d, V_tri_3d, R_est, T_est); 
 
         //Eigen::MatrixXd p1 = V_tri_2d; // TODO get rid of extra notation
         Eigen::MatrixXd p2 = V_tri_3d;
@@ -172,17 +221,19 @@ void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eig
             double target_u = (Bp - Ap)(0);
             triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, edge.second), 1.0));
             triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, edge.first), -1.0));
-            target_vector.push_back(target_u);
-            if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-                weight_vector.push_back(edges_coeff_);
+            //target_vector.push_back(target_u);
+            b(next_equation_id_) = target_u;
+            //weight_vector.push_back(edges_coeff_);
+            W.diagonal()[next_equation_id_] = edges_coeff_;
             next_equation_id_ ++;
 
             double target_v = (Bp - Ap)(1);
             triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, edge.second) + 1, 1.0));
             triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, edge.first) + 1, -1.0));
-            target_vector.push_back(target_v);
-            if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-                weight_vector.push_back(edges_coeff_);
+            //target_vector.push_back(target_v);
+            b(next_equation_id_) = target_v;
+            //    weight_vector.push_back(edges_coeff_);
+            W.diagonal()[next_equation_id_] = edges_coeff_;
             next_equation_id_ ++;
         }
     }
@@ -207,16 +258,18 @@ void BaryOptimizer::equationsFromDarts(const Eigen::MatrixXd& V_2d,
 
             double target_u = targets(i, 0);
             triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * v_id, 1.0));
-            target_vector.push_back(target_u);
-            if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-                weight_vector.push_back(dart_sym_coeff_);
+            //target_vector.push_back(target_u);
+            b(next_equation_id_) = target_u;
+            weight_vector.push_back(dart_sym_coeff_);
+            W.diagonal()[next_equation_id_] = dart_sym_coeff_;
             next_equation_id_ ++;
 
             double target_v = targets(i, 1);
             triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * v_id + 1, 1.0));
-            target_vector.push_back(target_v);
-            if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-                weight_vector.push_back(dart_sym_coeff_);
+            //target_vector.push_back(target_v);
+            b(next_equation_id_) = target_v;
+            //weight_vector.push_back(dart_sym_coeff_);
+            W.diagonal()[next_equation_id_] = dart_sym_coeff_;
             next_equation_id_ ++;
         }
         
@@ -225,87 +278,58 @@ void BaryOptimizer::equationsFromDarts(const Eigen::MatrixXd& V_2d,
 
 void BaryOptimizer::makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
                                      const Eigen::MatrixXi& F,
-                                     Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b,
-                                     DiagonalMatrixXd& W){
-
-    // Sparse conventions:
-    // we have n target equations
-    // and vector x of V 2D vertices
-    // vertex i has its u coord in x(2*i) and its v coord in x(2*i+1)
-    // M(equation, 2*v_id);
+                                     Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b2,
+                                     DiagonalMatrixXd& W2){
 
     next_equation_id_ = 0;
-    int n_equations = 0; // Predict size for memory allocation
-    int n_triplets = 0;
 
-    if (enable_stretch_eqs_) {
-        n_equations += 2 * F.rows();
-        n_triplets += 3 * 2 * F.rows();
-    }
+    triplet_list.clear(); // empty vector, but keeping memory size
+    //target_vector.clear(); // Perf: get rid of std::vector
+    //weight_vector.clear(); // Perf: get rid of std::vector
 
-    if (enable_angle_eqs_) {
-        n_equations += 2 * F.rows();
-        n_triplets += 3 * 2 * F.rows(); 
-    }
-
-    if (enable_set_seed_eqs_) {
-        n_equations += 2;
-        n_triplets += 2;
-    }
-
-    if (enable_edges_eqs_){
-        n_equations += 6 * F.rows();
-        n_triplets += 2 * 2 * F.rows();
-    }
-
-    if (canUseSelectedEquation()){
-        n_equations += 1;
-        n_triplets += 2;
-    }
-
-    if (enable_dart_sym_eqs_){
-        int dart_points = 0; // points with dart target position, i.e. all on dart except tip
-        for (int i=0; i<simple_darts_.size(); i++){
-            dart_points += simple_darts_[i].size(); // -1;
-        }
-        n_equations += dart_points * 2;
-        n_triplets += dart_points * 2;
-    }
-
-    std::vector<Eigen::Triplet<double>> triplet_list; // Perf: get rid of std::vector
-    std::vector<double> target_vector; // Perf: get rid of std::vector
-    triplet_list.reserve(n_triplets);
-    std::vector<double> weight_vector; // Perf: get rid of std::vector
-    // TODO PERF: reserve for triplets?
     for (int f_id=0; f_id<F.rows(); f_id++) {
         equationsFromTriangle(V_2d, V_3d, F, f_id, triplet_list, target_vector, weight_vector);
     }
 
     if (enable_set_seed_eqs_){
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 0, 1.0));
-        target_vector.push_back(V_2d(0,0));
-        if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-            weight_vector.push_back(1.0);
+        //target_vector.push_back(V_2d(0,0));
+        b(next_equation_id_) = V_2d(0,0);
+        //weight_vector.push_back(1.0);
+        W.diagonal()[next_equation_id_] = 1.0;
         next_equation_id_ ++;
 
 
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 1, 1.0));
-        target_vector.push_back(V_2d(0,1));
-        if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-            weight_vector.push_back(1.0);
+        //target_vector.push_back(V_2d(0,1));
+        b(next_equation_id_) = V_2d(0,1);
+        //weight_vector.push_back(1.0);
+        W.diagonal()[next_equation_id_] = 1.0;
         next_equation_id_ ++;
     }
 
-    if (canUseSelectedEquation()){
-        // selected vertices should have = V
-        int v0 = selected_vs_[0];
-        int v1 = selected_vs_[1];
-        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * v0 + 1, 1.0));
-        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * v1 + 1, -1.0));
-        target_vector.push_back(0);
-        if (USE_WEIGTHS_IN_LINEAR_SYSTEM)
-            weight_vector.push_back(selected_coeff_);
-        next_equation_id_ ++;
+    if (enable_selected_eqs_){
+        if (selected_vs_.size() >= 2 && selected_vs_[0] >= 0 && selected_vs_[1] >= 0){
+            // selected vertices should have = V
+            int v0 = selected_vs_[0];
+            int v1 = selected_vs_[1];
+            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * v0 + 1, 1.0));
+            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * v1 + 1, -1.0));
+            //target_vector.push_back(0);
+            b(next_equation_id_) = 0;
+            //weight_vector.push_back(selected_coeff_);
+            W.diagonal()[next_equation_id_] = selected_coeff_;
+            next_equation_id_ ++;
+        }
+        else { // not enough vertices selected
+            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * 0 + 1, 1.0));
+            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * 0 + 1, -1.0));
+            //target_vector.push_back(0);
+            b(next_equation_id_) = 0;
+            //weight_vector.push_back(0);
+            W.diagonal()[next_equation_id_] = 0;
+            next_equation_id_ ++;
+        }
     }
 
     if (enable_dart_sym_eqs_){
@@ -314,39 +338,43 @@ void BaryOptimizer::makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::M
 
 
     //b = Eigen::VectorXd(target_vector.size(), target_vector.data()); // Perf: get rid of std::vector
-    b.resize(target_vector.size());
+    /*b.resize(target_vector.size());
     for (int i=0; i<target_vector.size(); i++){ // TODO DO ANOTHER WAY
         b(i) = target_vector[i];
-    }
+    }*/
 
     #ifdef LOCALGLOBAL_DEBUG
-    std::cout << "n_equations: " << n_equations << std::endl;
+    std::cout << "n_equations_: " << n_equations_ << std::endl;
     std::cout << "next_equation_id_: " << next_equation_id_ << std::endl;
     std::cout << "triplet_list.size(): " << triplet_list.size() << std::endl; 
     std::cout << "target_vector.size(): " << target_vector.size() << std::endl; 
     #endif
 
-    if (n_equations != target_vector.size()){
-        std::cout << "ERROR: n_equations != b.rows(): " << n_equations << " vs " << target_vector.size() << std::endl;
+    //if (n_equations_ != target_vector.size()){
+    //    std::cout << "ERROR: n_equations_ != b.rows(): " << n_equations_ << " vs " << target_vector.size() << std::endl;
+    //}
+
+    if (n_equations_ != next_equation_id_){
+        std::cout << "ERROR: n_equations_ != next_equation_id_: " << n_equations_ << " vs " << next_equation_id_ << std::endl;
     }
 
-    /*if (n_equations != triplet_list.size()/3){// + 1){
-        std::cout << "ERROR: n_equations != triplet_list.size()/3: " << n_equations << " vs " << triplet_list.size() << std::endl;
+    /*if (n_equations_ != triplet_list.size()/3){// + 1){
+        std::cout << "ERROR: n_equations_ != triplet_list.size()/3: " << n_equations_ << " vs " << triplet_list.size() << std::endl;
     }*/
 
-    A.resize(n_equations, 2*V_2d.rows());
+    A.resize(n_equations_, 2*V_2d.rows());
     A.setFromTriplets(triplet_list.begin(), triplet_list.end());
 
-    if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
-        //W.resize(n_equations, n_equations);
+    /*if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
+        //W.resize(n_equations_, n_equations_);
         //W.setFromTriplets(weight_triplets.begin(), weight_triplets.end());
-        //W.resize(n_equations);
-        Eigen::VectorXd temp(n_equations);
-        for (int i=0; i<n_equations; i++){
+        //W.resize(n_equations_);
+        Eigen::VectorXd temp(n_equations_);
+        for (int i=0; i<n_equations_; i++){
             temp(i) = weight_vector[i]; // TODO perf
         }
         W = temp.asDiagonal();
-    }
+    }*/
 
     #ifdef LOCALGLOBAL_DEBUG
     std::cout << "Sparse matrix computed." << std::endl;
@@ -361,9 +389,9 @@ Eigen::MatrixXd BaryOptimizer::localGlobal(const Eigen::MatrixXd& V_2d, const Ei
     #endif
 
     Eigen::SparseMatrix<double> A;
-    DiagonalMatrixXd W;
-    Eigen::VectorXd b, x;
-    makeSparseMatrix(V_2d, V_3d, F, A, b, W);
+    DiagonalMatrixXd W2; // TODO remove
+    Eigen::VectorXd b2, x;
+    makeSparseMatrix(V_2d, V_3d, F, A, b2, W2);
     DiagonalMatrixXd Wt = W;
     if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
         //Wt = Wt.transpose();

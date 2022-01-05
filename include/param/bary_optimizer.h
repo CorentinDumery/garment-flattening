@@ -4,7 +4,7 @@
 #include <Eigen/Sparse>
 #include <vector>
 
-#include "dart.h"
+#include "param/dart.h"
 
 typedef Eigen::DiagonalMatrix<double, Eigen::Dynamic> DiagonalMatrixXd;
 
@@ -19,6 +19,8 @@ typedef Eigen::DiagonalMatrix<double, Eigen::Dynamic> DiagonalMatrixXd;
 
 class BaryOptimizer {
 public:
+    BaryOptimizer(int n_faces);
+
     Eigen::MatrixXd localGlobal(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d, 
                                 const Eigen::MatrixXi& F);
 
@@ -26,6 +28,18 @@ public:
     void setDarts(std::vector<SimpleDart> simple_darts) {
         for (SimpleDart d: simple_darts)
             simple_darts_.push_back(d);
+    };
+    void setDarts(std::vector<std::vector<int>> ordered_cuts) {
+        std::vector<SimpleDart> simple_darts;
+        for (int i=0; i<ordered_cuts.size(); i++){
+            std::vector<int> cut = ordered_cuts[i]; 
+            if (cut.size() % 2 == 0) continue;
+            SimpleDart sd(cut);
+            sd.print();
+            simple_darts.push_back(sd);
+        }
+
+        setDarts(simple_darts);
     };
 
     // Config parameters
@@ -44,13 +58,23 @@ public:
 private:
 
     int next_equation_id_ = 0;
+    int n_equations_ = 0;
+    int n_triplets_ = 0;
     std::vector<int> selected_vs_;
     std::vector<SimpleDart> simple_darts_;
+
+    Eigen::VectorXd b;
+    DiagonalMatrixXd W; 
+
+    std::vector<Eigen::Triplet<double>> triplet_list; // Perf: get rid of std::vector
+    std::vector<double> target_vector; // Perf: get rid of std::vector, replace with b
+    std::vector<double> weight_vector; // Perf: get rid of std::vector, replace with W
+    // TODO PERF: reserve for triplets?
     
     void equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
                                const Eigen::MatrixXi& F, int f_id,
                                std::vector<Eigen::Triplet<double>>& triplet_list,
-                               std::vector<double>& target_vector,
+                               std::vector<double>& target_vector, // TODO remove
                                std::vector<double>& weight_vector);
 
     void equationsFromDarts(const Eigen::MatrixXd& V_2d,
@@ -61,11 +85,11 @@ private:
 
     void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
                       const Eigen::MatrixXi& F,
-                      Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b,
-                      DiagonalMatrixXd& W);
+                      Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b2,
+                      DiagonalMatrixXd& W2);
 
     bool canUseSelectedEquation(){
-        return enable_selected_eqs_ && selected_vs_.size() >= 2 && selected_vs_[0] > 0 && selected_vs_[1] >= 0;
+        return enable_selected_eqs_ && selected_vs_.size() >= 2 && selected_vs_[0] >= 0 && selected_vs_[1] >= 0;
     }
     
 };

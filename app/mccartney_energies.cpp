@@ -14,9 +14,8 @@
 #endif
 
 #include "mccartney.h"
-#include "procustes.h"
-#include "bary_optimizer.h"
-#include "dart.h"
+//#include "procustes.h"
+#include "param/bary_optimizer.h"
 
 igl::opengl::glfw::Viewer viewer; // TODO MOVE
 
@@ -138,7 +137,7 @@ int main(int argc, char *argv[]){
     Eigen::MatrixXd V_3d, V_2d, V_2di;
     Eigen::MatrixXi F, F0;
 
-    /*
+    //*
     igl::readOBJ("../data/dress_front_cut.obj", V_3d, F0);
     igl::readOBJ("../data/flat_dress.obj", V_2d, F);
     //*/
@@ -148,7 +147,7 @@ int main(int argc, char *argv[]){
     igl::readOBJ("../data/semisphere_uncut_flat.obj", V_2d, F);
     //*/
 
-    //*
+    /*
     igl::readOBJ("../data/mark_skirt_back_left_cut.obj", V_3d, F0);
     igl::readOBJ("../data/mark_skirt_back_left_cut_flat.obj", V_2d, F);
     //*/
@@ -282,23 +281,13 @@ int main(int argc, char *argv[]){
     printMatStats("Strain V", strain_v);
     printMatStats("Shear", shear);
 
-    BaryOptimizer bo;
+    BaryOptimizer bo(F.rows());
 
 
     std::vector<int> dart1_ordered_vs = {90, 64, 65, 116, 168, 162, 119, 16, 187, 185, 188};
     std::vector<int> dart2_ordered_vs = {129, 128, 126, 117, 121, 21, 103, 96, 95, 133, 124};
     std::vector<std::vector<int>> ordered_cuts = {dart1_ordered_vs, dart2_ordered_vs};
-
-    std::vector<SimpleDart> simple_darts;
-    for (int i=0; i<ordered_cuts.size(); i++){
-        std::vector<int> cut = ordered_cuts[i]; 
-        if (cut.size() % 2 == 0) continue;
-        SimpleDart sd(cut);
-        sd.print();
-        simple_darts.push_back(sd);
-    }
-
-    bo.setDarts(simple_darts);
+    //bo.setDarts(ordered_cuts);
 
 
 
