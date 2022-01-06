@@ -32,3 +32,5 @@ Eigen::VectorXd vertices2dToVector(const Eigen::MatrixXd& V);
 // credits https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
 Eigen::Vector3d barycentricCoords(const Eigen::RowVector3d& p, const Eigen::RowVector3d& a, 
                                          const Eigen::RowVector3d& b, const Eigen::RowVector3d& c);
+
+Eigen::MatrixXd paramARAP(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F);

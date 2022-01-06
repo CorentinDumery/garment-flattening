@@ -74,7 +74,7 @@ void makeTriPoints(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int f_id,
     out.row(2) = V.row(F(f_id,2));
 }
 
-Eigen::VectorXd vertices2dToVector(const Eigen::MatrixXd& V){ // TODO put somewhere else
+Eigen::VectorXd vertices2dToVector(const Eigen::MatrixXd& V){
     Eigen::VectorXd res(2 * V.rows()); // TODO faster?
     for (int i=0; i<V.rows(); i++){
         res(2 * i) = V(i,0);
@@ -84,7 +84,7 @@ Eigen::VectorXd vertices2dToVector(const Eigen::MatrixXd& V){ // TODO put somewh
 }
 
 Eigen::Vector3d barycentricCoords(const Eigen::RowVector3d& p, const Eigen::RowVector3d& a, 
-                                         const Eigen::RowVector3d& b, const Eigen::RowVector3d& c){ // TODO put somewhere else
+                                         const Eigen::RowVector3d& b, const Eigen::RowVector3d& c){
     Eigen::RowVector3d v0 = b - a;
     Eigen::RowVector3d v1 = c - a;
     Eigen::RowVector3d v2 = p - a;
@@ -98,4 +98,51 @@ Eigen::Vector3d barycentricCoords(const Eigen::RowVector3d& p, const Eigen::RowV
     double w = (d00 * d21 - d01 * d20) / denom;
     double u = 1.0f - v - w;
     return Eigen::Vector3d(u, v, w);
+}
+
+#include <igl/arap.h>
+#include <igl/boundary_loop.h>
+#include <igl/harmonic.h>
+#include <igl/map_vertices_to_circle.h>
+
+Eigen::MatrixXd paramARAP(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F){
+
+    Eigen::MatrixXd V_2d, V_3db;
+    V_3db = V_3d;
+    double scale = V_3d.maxCoeff();
+    V_3db = V_3db.array() / scale; 
+
+    // Compute the initial solution for ARAP (harmonic parametrization)
+    Eigen::VectorXi bnd;
+    igl::boundary_loop(F, bnd);
+    Eigen::MatrixXd bnd_uv;
+    igl::map_vertices_to_circle(V_3db, bnd, bnd_uv);
+
+    Eigen::MatrixXd initial_guess;
+    igl::harmonic(V_3db, F, bnd, bnd_uv, 1, initial_guess);
+
+    // Add dynamic regularization to avoid to specify boundary conditions
+    igl::ARAPData arap_data;
+    arap_data.with_dynamics = true;
+    Eigen::VectorXi b  = Eigen::VectorXi::Zero(0);
+    Eigen::MatrixXd bc = Eigen::MatrixXd::Zero(0,0);
+
+    // Initialize ARAP
+    arap_data.max_iter = 100;
+    // 2 means that we're going to *solve* in 2d
+    arap_precomputation(V_3db, F, 2, b, arap_data);
+
+    // Solve arap using the harmonic map as initial guess
+    V_2d = initial_guess;
+    arap_solve(bc, arap_data, V_2d);
+
+
+    Eigen::MatrixXd V_2db = Eigen::MatrixXd::Zero(V_2d.rows(), 3);
+    V_2db.col(0) = V_2d.col(0);
+    V_2db.col(1) = V_2d.col(1);
+    
+    std::cout << "V_2d size " << V_2d.cols() << std::endl;
+    std::cout << "V_2db size " << V_2db.cols() << std::endl;
+    
+    return V_2db.array() * scale;
 }

@@ -138,8 +138,10 @@ int main(int argc, char *argv[]){
     Eigen::MatrixXi F, F0;
 
     //*
-    igl::readOBJ("../data/dress_front_cut.obj", V_3d, F0);
-    igl::readOBJ("../data/flat_dress.obj", V_2d, F);
+    igl::readOBJ("../data/dress_front_cut.obj", V_3d, F);
+    //igl::readOBJ("../data/flat_dress.obj", V_2d, F);
+    V_2d = paramARAP(V_3d, F);
+    F0 = F;
     //*/
 
     /*
@@ -254,12 +256,12 @@ int main(int argc, char *argv[]){
     Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> R,G,B,A;
     igl::png::readPNG("../data/grid.png",R,G,B,A);
 
-    if (F.maxCoeff() != F0.maxCoeff()){
+    /*if (F.maxCoeff() != F0.maxCoeff()){
         std::cout << "ERROR: meshes don't match" << std::endl;
         return 0;
-    }
+    }*/
 
-    Eigen::VectorXd strain_u(F.rows());
+    /*Eigen::VectorXd strain_u(F.rows());
     Eigen::VectorXd strain_v(F.rows());
     Eigen::VectorXd shear(F.rows());
 
@@ -279,9 +281,9 @@ int main(int argc, char *argv[]){
 
     printMatStats("Strain U", strain_u);
     printMatStats("Strain V", strain_v);
-    printMatStats("Shear", shear);
+    printMatStats("Shear", shear);*/
 
-    BaryOptimizer bo(F.rows());
+    BaryOptimizer bo(F.rows(), V_2d.rows());
 
 
     std::vector<int> dart1_ordered_vs = {90, 64, 65, 116, 168, 162, 119, 16, 187, 185, 188};
@@ -493,6 +495,7 @@ int main(int argc, char *argv[]){
 
             ImGui::Checkbox("Update V_2d", &update_v2d);
 
+            
             ImGui::End();
         }
     
