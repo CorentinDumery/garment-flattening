@@ -7,6 +7,7 @@
 #include <igl/png/readPNG.h>
 #include <igl/edges.h>
 #include <igl/unproject_onto_mesh.h>
+#include <igl/boundary_loop.h>
 
 //#define COMP_WITH_NET_PARAM
 #ifdef COMP_WITH_NET_PARAM
@@ -14,6 +15,7 @@
 #endif
 
 #include "mccartney.h"
+#include "param/auto_select.h"
 //#include "procustes.h"
 #include "param/bary_optimizer.h"
 
@@ -137,14 +139,14 @@ int main(int argc, char *argv[]){
     Eigen::MatrixXd V_3d, V_2d, V_2di;
     Eigen::MatrixXi F, F0;
 
-    //*
+    /*
     igl::readOBJ("../data/dress_front_cut.obj", V_3d, F);
     //igl::readOBJ("../data/flat_dress.obj", V_2d, F);
     V_2d = paramARAP(V_3d, F);
     F0 = F;
     //*/
 
-    /*
+    //*
     igl::readOBJ("../data/semisphere_uncut.obj", V_3d, F0);
     igl::readOBJ("../data/semisphere_uncut_flat.obj", V_2d, F);
     //*/
@@ -241,6 +243,19 @@ int main(int argc, char *argv[]){
         igl::readOBJ("../data/"+ std::string(argv[1]) + "_flat.obj", V_2d, F);
     }
 
+    V_2d = paramARAP(V_3d, F);
+
+    Eigen::VectorXi bnd;
+    igl::boundary_loop(F, bnd);
+    std::vector<int> selec = autoSelect(V_3d, bnd);
+    
+    Eigen::RowVector3d from = V_2d.row(selec[0]) - V_2d.row(selec[1]);
+    Eigen::RowVector3d to(1.0, 0, 0);  
+    Eigen::Matrix3d Rot = computeRotation(from, to);
+    V_2d = (Rot * V_2d.transpose()).transpose();
+
+    std::cout << selec[0] << " s " << selec[1] << std::endl;
+
     double scale_f = 1.0;
     float scale_uv = 1.0;
     V_3d *= scale_f;
@@ -283,7 +298,8 @@ int main(int argc, char *argv[]){
     printMatStats("Strain V", strain_v);
     printMatStats("Shear", shear);*/
 
-    BaryOptimizer bo(F.rows(), V_2d.rows());
+    BaryOptimizer bo;
+    bo.allocateMemory(F.rows(), V_2d.rows());
 
 
     std::vector<int> dart1_ordered_vs = {90, 64, 65, 116, 168, 162, 119, 16, 187, 185, 188};
@@ -495,6 +511,19 @@ int main(int argc, char *argv[]){
 
             ImGui::Checkbox("Update V_2d", &update_v2d);
 
+            if (ImGui::Button("Auto select", ImVec2(-1, 0))){
+                Eigen::VectorXi bnd;
+                igl::boundary_loop(F, bnd);
+                std::vector<int> sel = autoSelect(V_3d, bnd);
+                /*for (int i=0; i<bnd.rows(); i++){
+                    viewer.data().add_points(V_3d.row(bnd(i)), Eigen::RowVector3d(0, 1.0, 0.0));
+                }*/
+                for (int i: sel){
+                    viewer.data().add_points(V_3d.row(i), Eigen::RowVector3d(0, 0, 1.0));
+                }
+
+                bo.setSelectedVertices(sel);
+            }
             
             ImGui::End();
         }

@@ -46,3 +46,8 @@ target_link_libraries(energy_check igl::core)
 
 #add_executable(crosses app/crosses.cpp)
 #target_link_libraries(crosses igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
+
+file(GLOB PARAMSRC src/param/*.cpp)
+add_executable(param app/param.cpp ${PARAMSRC})
+target_link_libraries(param igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
+target_include_directories(param PUBLIC include/param)

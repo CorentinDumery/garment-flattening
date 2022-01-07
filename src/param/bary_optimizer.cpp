@@ -6,10 +6,10 @@
 #include <Eigen/IterativeLinearSolvers> // https://forum.kde.org/viewtopic.php?f=74&t=125165
 
 #include "param/dart.h"
-#include "param/param_utils.h"
 
+#include "param/param_utils.h"
 //#define LOCALGLOBAL_DEBUG
-#define LOCALGLOBAL_TIMING
+//#define LOCALGLOBAL_TIMING
 //#define LOCALGLOBAL_DEBUG_SMALL // print full matrices, should be small
 
 #ifdef LOCALGLOBAL_TIMING
@@ -21,7 +21,7 @@ using std::chrono::microseconds;
 
 #define USE_WEIGTHS_IN_LINEAR_SYSTEM true
 
-BaryOptimizer::BaryOptimizer(int n_faces, int n_vs){
+void BaryOptimizer::allocateMemory(int n_faces, int n_vs){
     // Sparse conventions:
     // we have n target equations
     // and vector x of V 2D vertices
@@ -514,7 +514,8 @@ void BaryOptimizer::measureScore(const Eigen::MatrixXd& V_2d, const Eigen::Matri
     double stretch_v_score = 0;
     double edges_score = 0;
 
-    //stretch_u_vec
+    stretch_u_vec.resize(F.rows());
+    stretch_v_vec.resize(F.rows());
     
     for (int f_id=0; f_id<F.rows(); f_id++) {
         // each triangle gives us 2 equations:
@@ -548,6 +549,8 @@ void BaryOptimizer::measureScore(const Eigen::MatrixXd& V_2d, const Eigen::Matri
                         + V_2d(F(f_id, 2), 0) * (DU_bary(2) - D_bary(2));
         
         stretch_u_score += std::pow(target_u - actual_u, 2);
+
+        stretch_u_vec(f_id) = actual_u / target_u;
         //stretch_u_score += actual_u / target_u;
 
         double actual_v = V_2d(F(f_id, 0), 1) * (DV_bary(0) - D_bary(0))
@@ -555,6 +558,7 @@ void BaryOptimizer::measureScore(const Eigen::MatrixXd& V_2d, const Eigen::Matri
                         + V_2d(F(f_id, 2), 1) * (DV_bary(2) - D_bary(2));
         
         stretch_v_score += std::pow(target_v - actual_v, 2);
+        stretch_v_vec(f_id) = actual_v / target_v;
         //stretch_v_score += actual_v / target_v;
             
 
@@ -607,10 +611,15 @@ void BaryOptimizer::measureScore(const Eigen::MatrixXd& V_2d, const Eigen::Matri
     // No dart score for now
     // equationsFromDarts(V_2d, F); // TODO ?
 
-    std::cout << "Stretch U:\t" << stretch_u_score << std::endl;
+    /*std::cout << "Stretch U:\t" << stretch_u_score << std::endl;
     std::cout << "Stretch V:\t" << stretch_v_score << std::endl;
     std::cout << "Edges sc.:\t" << edges_score << std::endl;
-    std::cout << "Selec sc.:\t" << selected_score << std::endl;
+    std::cout << "Selec sc.:\t" << selected_score << std::endl;*/
+
+
+    // From centered around 1 to centered around 0:
+    stretch_u_vec = stretch_u_vec.array() - 1.0;
+    stretch_v_vec = stretch_v_vec.array() - 1.0;
 }
 
 void BaryOptimizer::setDarts(std::vector<SimpleDart> simple_darts) {
