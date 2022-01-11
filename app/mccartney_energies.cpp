@@ -8,6 +8,7 @@
 #include <igl/edges.h>
 #include <igl/unproject_onto_mesh.h>
 #include <igl/boundary_loop.h>
+#include <igl/avg_edge_length.h>
 
 //#define COMP_WITH_NET_PARAM
 #ifdef COMP_WITH_NET_PARAM
@@ -137,23 +138,23 @@ int main(int argc, char *argv[]){
     std::cout << "Eigen is using " << Eigen::nbThreads() << " threads." << std::endl;
 
     Eigen::MatrixXd V_3d, V_2d, V_2di;
-    Eigen::MatrixXi F, F0;
+    Eigen::MatrixXi F;
 
     /*
     igl::readOBJ("../data/dress_front_cut.obj", V_3d, F);
     //igl::readOBJ("../data/flat_dress.obj", V_2d, F);
-    V_2d = paramARAP(V_3d, F);
+    //V_2d = paramARAP(V_3d, F);
     F0 = F;
     //*/
 
-    //*
+    /*
     igl::readOBJ("../data/semisphere_uncut.obj", V_3d, F0);
     igl::readOBJ("../data/semisphere_uncut_flat.obj", V_2d, F);
     //*/
 
-    /*
-    igl::readOBJ("../data/mark_skirt_back_left_cut.obj", V_3d, F0);
-    igl::readOBJ("../data/mark_skirt_back_left_cut_flat.obj", V_2d, F);
+    //*
+    igl::readOBJ("../data/mark_skirt_back_left_cut.obj", V_3d, F);
+    //igl::readOBJ("../data/mark_skirt_back_left_cut_flat.obj", V_2d, F);
     //*/
 
 
@@ -239,11 +240,14 @@ int main(int argc, char *argv[]){
     //*/
 
     if (argc > 1){
-        igl::readOBJ("../data/"+ std::string(argv[1]) + ".obj", V_3d, F0);
-        igl::readOBJ("../data/"+ std::string(argv[1]) + "_flat.obj", V_2d, F);
+        igl::readOBJ(std::string(argv[1]), V_3d, F);
+        //igl::readOBJ("../data/"+ std::string(argv[1]) + "_flat.obj", V_2d, F);
     }
 
-    V_2d = paramARAP(V_3d, F);
+    //V_2d = paramARAP(V_3d, F);
+    V_2d = paramLSCM(V_3d, F);
+
+    
 
     Eigen::VectorXi bnd;
     igl::boundary_loop(F, bnd);
@@ -259,7 +263,7 @@ int main(int argc, char *argv[]){
     double scale_f = 1.0;
     float scale_uv = 1.0;
     V_3d *= scale_f;
-    V_2d *= scale_f;
+    V_2d *= scale_f * igl::avg_edge_length(V_3d, F) / igl::avg_edge_length(V_2d, F);
 
     V_2di = V_2d;
 
@@ -299,15 +303,14 @@ int main(int argc, char *argv[]){
     printMatStats("Shear", shear);*/
 
     BaryOptimizer bo;
-    bo.allocateMemory(F.rows(), V_2d.rows());
 
-
+    // these match mark_skirt left I think
     std::vector<int> dart1_ordered_vs = {90, 64, 65, 116, 168, 162, 119, 16, 187, 185, 188};
     std::vector<int> dart2_ordered_vs = {129, 128, 126, 117, 121, 21, 103, 96, 95, 133, 124};
     std::vector<std::vector<int>> ordered_cuts = {dart1_ordered_vs, dart2_ordered_vs};
-    //bo.setDarts(ordered_cuts);
+    bo.setDarts(ordered_cuts);
 
-
+    bo.allocateMemory(F.rows(), V_2d.rows());
 
     // --- VISUALIZATION ---
 
@@ -518,9 +521,9 @@ int main(int argc, char *argv[]){
                 /*for (int i=0; i<bnd.rows(); i++){
                     viewer.data().add_points(V_3d.row(bnd(i)), Eigen::RowVector3d(0, 1.0, 0.0));
                 }*/
-                for (int i: sel){
-                    viewer.data().add_points(V_3d.row(i), Eigen::RowVector3d(0, 0, 1.0));
-                }
+                viewer.data().clear_points();
+                viewer.data().add_points(V_3d.row(sel[0]), Eigen::RowVector3d(0, 0, 0.5));
+                viewer.data().add_points(V_3d.row(sel[1]), Eigen::RowVector3d(0, 0, 1.0));
 
                 bo.setSelectedVertices(sel);
             }

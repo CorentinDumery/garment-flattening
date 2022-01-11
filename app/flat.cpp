@@ -452,10 +452,10 @@ int main(int argc, char *argv[])
             viewer.data().add_edges(edge_begs, edge_ends, Eigen::RowVector3d(0., 1., 1.));
             //viewer.data().add_points(points3d, Eigen::RowVector3d(1., 1., 1.));
 
-            Eigen::MatrixXd points = dart.getMiddlePoints(V);
+            //Eigen::MatrixXd points = dart.getMiddlePoints(V);
             //points = (rot * points.transpose()).transpose();
             //points = points + translation;
-            viewer.data().add_points(points, Eigen::RowVector3d(1., 0., 0.));
+            //viewer.data().add_points(points, Eigen::RowVector3d(1., 0., 0.));
 
             Eigen::MatrixXd sym_points_2d = dart.getSymmetricPoints(V_uv_2d, axis);
             Eigen::MatrixXd sym_points = Eigen::MatrixXd::Zero(sym_points_2d.rows(), 3);

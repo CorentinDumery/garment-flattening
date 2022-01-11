@@ -15,7 +15,7 @@ file(GLOB SRCFILES src/*.cpp)
 file(GLOB PARAFASHIONFILES src/parafashion/*.cpp)
 file(GLOB TRACINGFILES src/field_tracing/*.cpp)
 
-add_executable(${PROJECT_NAME} ${SRCFILES} app/flat.cpp)
+add_executable(${PROJECT_NAME} ${SRCFILES} app/flat.cpp src/param/param_utils.cpp)
 target_link_libraries(${PROJECT_NAME} igl::core igl::opengl_glfw igl::png igl::opengl_glfw_imgui igl::triangle)
 include_directories(include)
 
@@ -31,11 +31,14 @@ target_link_libraries(render_coords igl::opengl_glfw igl::core)
 add_executable(triangle_energies app/triangle_energies.cpp src/net_param.cpp src/param/param_utils.cpp)
 target_link_libraries(triangle_energies igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
 
-add_executable(mccartney_energies app/mccartney_energies.cpp src/net_param.cpp src/param/param_utils.cpp src/param/bary_optimizer.cpp)
+add_executable(mccartney_energies app/mccartney_energies.cpp src/net_param.cpp src/param/param_utils.cpp src/param/bary_optimizer.cpp src/param/auto_select.cpp)
 target_link_libraries(mccartney_energies igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png OpenMP::OpenMP_CXX)
 
 add_executable(energy_check app/energy_check.cpp src/param/param_utils.cpp)
 target_link_libraries(energy_check igl::core)
+
+add_executable(compute_bnd app/compute_bnd.cpp src/param/param_utils.cpp)
+target_link_libraries(compute_bnd igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
 
 #add_executable(markables app/markables.cpp ${VCGSRC} ${OLDIGLSRC} ${PARAFASHIONFILES} ${TRACINGFILES})
 #target_link_libraries(markables igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png)
