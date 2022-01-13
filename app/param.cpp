@@ -37,6 +37,9 @@ int main(int argc, char *argv[]){
 
     std::cout << "Success: " << success << std::endl;
     cloth.printStretchStats();
+    Eigen::VectorXd su, sv;
+    cloth.getStretchStats(su, sv);
+    std::cout << "Stretch start: " << sv.topRows(10) << std::endl;
     V_2d = cloth.getV2d();
 
 

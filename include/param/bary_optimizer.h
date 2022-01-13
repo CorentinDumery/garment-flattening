@@ -47,6 +47,10 @@ public:
     bool enable_selected_eqs_ = true;
     double selected_coeff_ = 20.0;
 
+    // Try to align each triangle vertically
+    bool enable_tri_align_eqs_ = true;
+    double tri_align_coeff_ = 1.0;
+
     // Encourage pairs of points on dart to be symmetric
     bool enable_dart_sym_eqs_ = true;
     double dart_sym_coeff_ = 1.0;

@@ -247,6 +247,7 @@ int main(int argc, char *argv[]){
 
     Eigen::VectorXi bnd;
     igl::boundary_loop(F, bnd);
+    std::cout << "bnd size: " << bnd.rows() << std::endl;
 
     //V_2d = paramARAP(V_3d, F);
     V_2d = paramLSCM(V_3d, F, bnd);
@@ -258,7 +259,7 @@ int main(int argc, char *argv[]){
     Eigen::RowVector3d from = V_2d.row(selec[0]) - V_2d.row(selec[1]);
     Eigen::RowVector3d to(1.0, 0, 0);  
     Eigen::Matrix3d Rot = computeRotation(from, to);
-    V_2d = (Rot * V_2d.transpose()).transpose();
+    V_2d = (Rot.transpose() * V_2d.transpose()).transpose();
 
     double scale_f = 1.0;
     float scale_uv = 1.0;
@@ -305,12 +306,14 @@ int main(int argc, char *argv[]){
     BaryOptimizer bo;
 
     // these match mark_skirt left I think
-    std::vector<int> dart1_ordered_vs = {90, 64, 65, 116, 168, 162, 119, 16, 187, 185, 188};
+    /*std::vector<int> dart1_ordered_vs = {90, 64, 65, 116, 168, 162, 119, 16, 187, 185, 188};
     std::vector<int> dart2_ordered_vs = {129, 128, 126, 117, 121, 21, 103, 96, 95, 133, 124};
     std::vector<std::vector<int>> ordered_cuts = {dart1_ordered_vs, dart2_ordered_vs};
-    bo.setDarts(ordered_cuts);
+    bo.setDarts(ordered_cuts);*/
 
+    std::cout << "Allocating memory..." << std::endl;
     bo.allocateMemory(F.rows(), V_2d.rows());
+    std::cout << "Allocated" << std::endl;
 
     // --- VISUALIZATION ---
 
@@ -491,9 +494,20 @@ int main(int argc, char *argv[]){
             }
 
             float selected_f = bo.selected_coeff_;
-            if (ImGui::SliderFloat("Sel. align penalty", &selected_f, 0.0f, 100.0f, "%.3f")){
+            if (ImGui::SliderFloat("Selection align", &selected_f, 0.0f, 100.0f, "%.3f")){
                 V_2d = V_2di;
                 bo.selected_coeff_ = selected_f;
+                for (int i=0; i<n_iterations; i++){
+                    V_2d = bo.localGlobal(V_2d, V_3d, F);
+                }
+                if (update_v2d) viewer.data().set_mesh(V_2d, F);
+                viewer.data().set_uv(V_2d * scale_uv);
+            }
+
+            float tri_alig_f = bo.tri_align_coeff_;
+            if (ImGui::SliderFloat("Triangle align", &tri_alig_f, 0.0f, 5.0f, "%.3f")){
+                V_2d = V_2di;
+                bo.tri_align_coeff_ = tri_alig_f;
                 for (int i=0; i<n_iterations; i++){
                     V_2d = bo.localGlobal(V_2d, V_3d, F);
                 }
