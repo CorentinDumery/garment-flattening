@@ -40,6 +40,9 @@ target_link_libraries(energy_check igl::core)
 add_executable(compute_bnd app/compute_bnd.cpp src/param/param_utils.cpp)
 target_link_libraries(compute_bnd igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
 
+add_executable(cut app/cut.cpp)
+target_link_libraries(cut igl::core)
+
 #add_executable(markables app/markables.cpp ${VCGSRC} ${OLDIGLSRC} ${PARAFASHIONFILES} ${TRACINGFILES})
 #target_link_libraries(markables igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png)
 #target_include_directories(markables 

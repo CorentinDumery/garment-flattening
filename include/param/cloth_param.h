@@ -28,12 +28,9 @@ public:
     // direction v1 -> v2 
     void setAlignmentVertexPair(int v1_id, int v2_id);
 
-
-
     // Seams
     // TODO decide: do it in order of patch tracing, or do it in the end?
 
-    // TODO
     bool checkSelfIntersect() const;
 
     // ----- MISC. ----- //

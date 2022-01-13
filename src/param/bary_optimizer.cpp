@@ -87,8 +87,6 @@ void BaryOptimizer::allocateMemory(int n_faces, int n_vs){
             dart_points += 1; // for the tip
         }
 
-        std::cout << "dart_points " << dart_points << std::endl;
-
         n_equations_ += dart_points * 2;
         n_triplets_ += dart_points * 2;
 
@@ -305,10 +303,6 @@ void BaryOptimizer::equationsFromDarts(const Eigen::MatrixXd& V_2d,
         //if (dart.size() < 3) continue;
         Eigen::RowVector2d sym_axis = dart.computeSymmetryAxis(V_2d.leftCols(2));
         std::vector<std::pair<Eigen::RowVector2d, Eigen::RowVector2d>> targets = dart.computeSymmetryTargets(V_2d.leftCols(2), sym_axis);
-
-        dart.print();
-        std::cout << "sym_axisEDSO: " << sym_axis << std::endl;
-        // expecting -0.00252695  -0.0142178
 
         if (dart.pairs_.size() != targets.size()){ 
             std::cout << "Error in equationsFromDarts" << std::endl;
@@ -709,7 +703,6 @@ void BaryOptimizer::setDarts(std::vector<std::vector<int>> ordered_cuts) {
         std::vector<int> cut = ordered_cuts[i]; 
         if (cut.size() % 2 == 0) continue;
         SimpleDart sd(cut);
-        sd.print();
         simple_darts.push_back(sd);
     }
 

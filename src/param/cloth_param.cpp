@@ -1,17 +1,24 @@
 #include "param/cloth_param.h"
+#include "param/self_intersect.h"
 
 ClothParam::ClothParam(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
                        double max_stretch,
                        const std::vector<std::vector<std::pair<int, int>>>& dart_duplicates,
                        const std::vector<int>& dart_tips)
             : F_(F), V_3d_(V_3d), max_stretch_(max_stretch){
+    
+    igl::boundary_loop(F, bnd_);
     //V_2d_ = paramARAP(V_3d_, F_);
-    V_2d_ = paramLSCM(V_3d_, F_);
+    V_2d_ = paramLSCM(V_3d_, F_, bnd_);
+    if (checkSelfIntersect()){
+        //std::cout << "Self intersecting at init" << std::endl;
+        // do something ?
+    }
     setDartPairs(dart_duplicates, dart_tips);
     bo_.allocateMemory(F.rows(), V_3d.rows());
     bo_.measureScore(V_2d_, V_3d_, F_, stretch_u_, stretch_v_);
 
-    igl::boundary_loop(F, bnd_);
+    
     std::vector<int> selec = autoSelect(V_3d, bnd_);
     bo_.setSelectedVertices(selec);
 
@@ -24,6 +31,10 @@ ClothParam::ClothParam(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
 
 bool ClothParam::paramAttempt(int max_iter){
     for (int current_iter = 0; current_iter < max_iter; current_iter++){
+        if (checkSelfIntersect()){
+            // interrupt process early
+            return false;
+        }
         bo_.measureScore(V_2d_, V_3d_, F_, stretch_u_, stretch_v_);
         if (constraintSatisfied()){
             return true;
@@ -50,5 +61,5 @@ void ClothParam::setDartPairs(const std::vector<std::vector<std::pair<int, int>>
 }
 
 bool ClothParam::checkSelfIntersect() const {
-    // TODO
+    return selfIntersect(V_2d_, bnd_);
 }

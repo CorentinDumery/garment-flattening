@@ -42,7 +42,7 @@ int main(int argc, char *argv[]){
 
      // --- TEST AREA: check UnorderedDart and SimpleDart are equivalent --- //
 
-    SimpleDart sd({614, 613, 615, 616, 617, 296, 295, 294, 287, 286, 603});
+    /*SimpleDart sd({614, 613, 615, 616, 617, 296, 295, 294, 287, 286, 603});
     UnorderedDart ud(darts[0], dart_tip[0]);
 
     Eigen::RowVectorXd sd_axis = sd.computeSymmetryAxis(V_2d);
@@ -71,7 +71,7 @@ int main(int argc, char *argv[]){
         std::cout << "-" << std::endl;
         std::cout << i.second << std::endl;
         std::cout << "--" << std::endl;
-    }
+    }*/
 
 
     // --- END TEST AREA --- //
@@ -105,7 +105,7 @@ int main(int argc, char *argv[]){
         return false;
     };
 
-    for (int i=0; i<dart_pairs.size(); i++){
+    /*for (int i=0; i<dart_pairs.size(); i++){
         Eigen::RowVector3d colorf = Eigen::RowVector3d::Random(); 
         Eigen::RowVector3d colors = Eigen::RowVector3d::Random(); 
         viewer.data().add_points(V_2d.row(dart_pairs[i].first), colorf);
@@ -121,7 +121,7 @@ int main(int argc, char *argv[]){
     vvv(0) = (temp + 10.0 * ud_axis)(0);
     vvv(1) = (temp + 10.0 * ud_axis)(1);
     vvv(2) = 0.0;
-    viewer.data().add_edges(V_2d.row(dart_tip[0]), vvv, Eigen::RowVector3d(1.0, 1.0, 1.0));
+    viewer.data().add_edges(V_2d.row(dart_tip[0]), vvv, Eigen::RowVector3d(1.0, 1.0, 1.0));*/
 
     viewer.data().show_lines = true;
     viewer.data().show_texture = true;

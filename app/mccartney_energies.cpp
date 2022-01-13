@@ -19,6 +19,7 @@
 #include "param/auto_select.h"
 //#include "procustes.h"
 #include "param/bary_optimizer.h"
+#include "param/self_intersect.h"
 
 igl::opengl::glfw::Viewer viewer; // TODO MOVE
 
@@ -140,11 +141,10 @@ int main(int argc, char *argv[]){
     Eigen::MatrixXd V_3d, V_2d, V_2di;
     Eigen::MatrixXi F;
 
-    /*
+    //*
     igl::readOBJ("../data/dress_front_cut.obj", V_3d, F);
     //igl::readOBJ("../data/flat_dress.obj", V_2d, F);
     //V_2d = paramARAP(V_3d, F);
-    F0 = F;
     //*/
 
     /*
@@ -152,7 +152,7 @@ int main(int argc, char *argv[]){
     igl::readOBJ("../data/semisphere_uncut_flat.obj", V_2d, F);
     //*/
 
-    //*
+    /*
     igl::readOBJ("../data/mark_skirt_back_left_cut.obj", V_3d, F);
     //igl::readOBJ("../data/mark_skirt_back_left_cut_flat.obj", V_2d, F);
     //*/
@@ -244,21 +244,21 @@ int main(int argc, char *argv[]){
         //igl::readOBJ("../data/"+ std::string(argv[1]) + "_flat.obj", V_2d, F);
     }
 
-    //V_2d = paramARAP(V_3d, F);
-    V_2d = paramLSCM(V_3d, F);
-
-    
 
     Eigen::VectorXi bnd;
     igl::boundary_loop(F, bnd);
+
+    //V_2d = paramARAP(V_3d, F);
+    V_2d = paramLSCM(V_3d, F, bnd);
+
+    
+
     std::vector<int> selec = autoSelect(V_3d, bnd);
     
     Eigen::RowVector3d from = V_2d.row(selec[0]) - V_2d.row(selec[1]);
     Eigen::RowVector3d to(1.0, 0, 0);  
     Eigen::Matrix3d Rot = computeRotation(from, to);
     V_2d = (Rot * V_2d.transpose()).transpose();
-
-    std::cout << selec[0] << " s " << selec[1] << std::endl;
 
     double scale_f = 1.0;
     float scale_uv = 1.0;
@@ -527,6 +527,8 @@ int main(int argc, char *argv[]){
 
                 bo.setSelectedVertices(sel);
             }
+
+            ImGui::Text("Self intersects: %i", selfIntersect(V_2d, bnd));
             
             ImGui::End();
         }
