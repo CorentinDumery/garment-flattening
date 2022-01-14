@@ -43,6 +43,11 @@ target_link_libraries(compute_bnd igl::opengl_glfw igl::core igl::opengl_glfw_im
 add_executable(cut app/cut.cpp)
 target_link_libraries(cut igl::core)
 
+file(GLOB PARAMSRC src/param/*.cpp)
+
+add_executable(multi_param app/multi_param.cpp ${PARAMSRC})
+target_link_libraries(multi_param igl::core igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
+
 #add_executable(markables app/markables.cpp ${VCGSRC} ${OLDIGLSRC} ${PARAFASHIONFILES} ${TRACINGFILES})
 #target_link_libraries(markables igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png)
 #target_include_directories(markables 
@@ -53,7 +58,6 @@ target_link_libraries(cut igl::core)
 #add_executable(crosses app/crosses.cpp)
 #target_link_libraries(crosses igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
 
-file(GLOB PARAMSRC src/param/*.cpp)
 add_executable(param app/param.cpp ${PARAMSRC})
 target_link_libraries(param igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
 target_include_directories(param PUBLIC include/param)

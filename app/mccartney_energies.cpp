@@ -9,6 +9,7 @@
 #include <igl/unproject_onto_mesh.h>
 #include <igl/boundary_loop.h>
 #include <igl/avg_edge_length.h>
+#include <igl/doublearea.h>
 
 //#define COMP_WITH_NET_PARAM
 #ifdef COMP_WITH_NET_PARAM
@@ -543,7 +544,23 @@ int main(int argc, char *argv[]){
             }
 
             ImGui::Text("Self intersects: %i", selfIntersect(V_2d, bnd));
+
+            ImGui::Separator();
+            Eigen::VectorXd M;
+            igl::doublearea(V_3d, F, M);
+            ImGui::Text("3D Mesh area: %f", M.sum());
+            ImGui::Text("3D Mesh range:");
+            ImGui::Text("X: %f, (%f -> %f)", V_3d.col(0).maxCoeff(), V_3d.col(0).minCoeff(), V_3d.col(0).minCoeff(), V_3d.col(0).maxCoeff());
+            ImGui::Text("Y: %f, (%f -> %f)", V_3d.col(1).maxCoeff(), V_3d.col(1).minCoeff(), V_3d.col(1).minCoeff(), V_3d.col(1).maxCoeff());
+            ImGui::Text("Z: %f, (%f -> %f)", V_3d.col(2).maxCoeff(), V_3d.col(2).minCoeff(), V_3d.col(2).minCoeff(), V_3d.col(2).maxCoeff());
             
+            ImGui::Separator();
+            igl::doublearea(V_2d, F, M);
+            ImGui::Text("2D Mesh area: %f", M.sum());
+            ImGui::Text("2D Mesh range:");
+            ImGui::Text("U: %f, (%f -> %f)", V_2d.col(0).maxCoeff(), V_2d.col(0).minCoeff(), V_2d.col(0).minCoeff(), V_2d.col(0).maxCoeff());
+            ImGui::Text("V: %f, (%f -> %f)", V_2d.col(1).maxCoeff(), V_2d.col(1).minCoeff(), V_2d.col(1).minCoeff(), V_2d.col(1).maxCoeff());
+
             ImGui::End();
         }
     

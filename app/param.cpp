@@ -12,7 +12,7 @@ int main(int argc, char *argv[]){
 
     // example input: ./param ../data/mark_skirt/mark_skirt_back_left_cut.obj
 
-    std::string input_path = "../data/buggy_patch.obj";
+    std::string input_path = "../../parafashion/data/buggy/not_good.obj";
     if (argc > 1) input_path = std::string(argv[1]);
 
     std::vector<int> dart_tip = {296};
