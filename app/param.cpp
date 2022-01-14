@@ -42,6 +42,9 @@ int main(int argc, char *argv[]){
     std::cout << "Stretch start: " << sv.topRows(10) << std::endl;
     V_2d = cloth.getV2d();
 
+    Eigen::VectorXd su2, sv2;
+    ClothParam::measureStretchStats(V_2d, V_3d, F, su2, sv2);
+    std::cout << "Stretch start: " << sv2.topRows(10) << std::endl;
 
      // --- TEST AREA: check UnorderedDart and SimpleDart are equivalent --- //
 
