@@ -32,7 +32,7 @@ add_executable(triangle_energies app/triangle_energies.cpp src/net_param.cpp src
 target_link_libraries(triangle_energies igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
 
 add_executable(mccartney_energies app/mccartney_energies.cpp src/net_param.cpp src/param/param_utils.cpp src/param/bary_optimizer.cpp src/param/auto_select.cpp)
-target_link_libraries(mccartney_energies igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png OpenMP::OpenMP_CXX)
+target_link_libraries(mccartney_energies igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png OpenMP::OpenMP_CXX igl::triangle)
 
 add_executable(energy_check app/energy_check.cpp src/param/param_utils.cpp)
 target_link_libraries(energy_check igl::core)
@@ -46,7 +46,7 @@ target_link_libraries(cut igl::core)
 file(GLOB PARAMSRC src/param/*.cpp)
 
 add_executable(multi_param app/multi_param.cpp ${PARAMSRC})
-target_link_libraries(multi_param igl::core igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
+target_link_libraries(multi_param igl::core igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::triangle)
 
 #add_executable(markables app/markables.cpp ${VCGSRC} ${OLDIGLSRC} ${PARAFASHIONFILES} ${TRACINGFILES})
 #target_link_libraries(markables igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png)

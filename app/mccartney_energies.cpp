@@ -250,8 +250,9 @@ int main(int argc, char *argv[]){
     igl::boundary_loop(F, bnd);
     std::cout << "bnd size: " << bnd.rows() << std::endl;
 
-    //V_2d = paramARAP(V_3d, F);
-    V_2d = paramLSCM(V_3d, F, bnd);
+    //V_2d = paramLSCM(V_3d, F, bnd);
+    //V_2d = paramARAP(V_3d, F, bnd);
+    V_2d = paramSCAF(V_3d, F, bnd);
 
     
 
