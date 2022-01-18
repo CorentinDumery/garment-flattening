@@ -13,6 +13,7 @@ int main(int argc, char *argv[]){
     // example input: ./param ../data/mark_skirt/mark_skirt_back_left_cut.obj
 
     std::string input_path = "../../parafashion/data/buggy/nanned.obj";
+    input_path = "../../garment-flattening/data/mark_skirt_back_left_cut.obj";
     if (argc > 1) input_path = std::string(argv[1]);
 
     std::vector<int> dart_tip = {296};
@@ -23,7 +24,8 @@ int main(int argc, char *argv[]){
                                                    {614, 603}};
     std::vector<std::vector<std::pair<int, int>>> darts = {dart_pairs};
 
-   
+    dart_tip = {};
+    darts = {};
 
     Eigen::MatrixXd V_3d, V_2d;
     Eigen::MatrixXi F;
@@ -33,6 +35,10 @@ int main(int argc, char *argv[]){
 
     //cloth.setDartPairs(darts, dart_tip);
 
+    cloth.disableIntersectionCheck();
+    cloth.enableIntersectionCheck();
+
+    std::cout << "paramAttempt... " << std::endl;
     bool success = cloth.paramAttempt(20);
 
     std::cout << "Success: " << success << std::endl;
