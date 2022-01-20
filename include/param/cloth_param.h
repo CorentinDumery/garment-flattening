@@ -19,7 +19,7 @@ public:
                double max_stretch = 0.05,
                const std::vector<std::vector<std::pair<int, int>>>& dart_duplicates = {},
                const std::vector<int>& dart_tips = {},
-               int seam_size = -1,
+               int seam_size = 0,
                CLOTH_INIT_TYPE = CLOTH_INIT_LSCM);
 
     // Tries to parameterize. Returns whether max_stretch 
@@ -66,6 +66,8 @@ public:
 
     void disableIntersectionCheck(){enable_intersection_check_ = false;};
     void enableIntersectionCheck(){enable_intersection_check_ = true;};
+
+    void loadConfig(std::string config_path);
 
 private:
     // Set during init

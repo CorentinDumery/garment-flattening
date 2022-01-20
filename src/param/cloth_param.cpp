@@ -1,11 +1,12 @@
 #include "param/cloth_param.h"
 #include <igl/avg_edge_length.h>
+#include <nlohmann/json.hpp>
 #include "param/self_intersect.h"
 
 //#define DEBUG_CLOTH_PARAM
-#ifdef DEBUG_CLOTH_PARAM
+//#ifdef DEBUG_CLOTH_PARAM
 #include <igl/writeOBJ.h>
-#endif
+//#endif
 
 #define CHECK_TOPOLOGY_PARAM
 
@@ -82,11 +83,12 @@ bool ClothParam::paramAttempt(int max_iter){
             igl::writeOBJ("../data/buggy/not_good.obj", V_3d_, F_);
             igl::writeOBJ("../data/buggy/not_good_uv.obj", V_2d_, F_);
         }
-        if (std::isnan(stretch_u_.maxCoeff())){ // not really supposed to happen if the initialization is ok
-            igl::writeOBJ("../data/buggy/nanned.obj", V_3d_, F_);
-            igl::writeOBJ("../data/buggy/nanned_uv.obj", V_2d_, F_);
-        }
         #endif
+        if (std::isnan(stretch_u_.maxCoeff())){ // not really supposed to happen if the initialization is ok
+            igl::writeOBJ("./nanned.obj", V_3d_, F_);
+            igl::writeOBJ("./nanned_uv.obj", V_2d_, F_);
+        }
+
 
         /*if (constraintSatisfied()){
             return true;
@@ -136,4 +138,20 @@ void ClothParam::setDartPairs(const std::vector<std::vector<std::pair<int, int>>
 
 bool ClothParam::checkSelfIntersect() const {
     return selfIntersect(V_2d_, bnd_);
+}
+
+void ClothParam::loadConfig(std::string config_path){
+    nlohmann::json j;
+    std::ifstream i(config_path);
+    i >> j;
+
+    double stretch_coeff = j["stretch_coeff"];
+    double edges_coeff = j["edges_coeff"];
+    double selected_coeff = j["selected_coeff"];
+    double tri_align_coeff = j["tri_align_coeff"];
+    double dart_sym_coeff = j["dart_sym_coeff"];
+    double seam_coeff = j["seam_coeff"];
+
+    bo_.setCoeffs(stretch_coeff, edges_coeff, selected_coeff, 
+                  tri_align_coeff, dart_sym_coeff, seam_coeff);
 }
