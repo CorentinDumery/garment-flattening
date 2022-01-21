@@ -5,6 +5,7 @@
 #include <igl/readOBJ.h>
 
 #include "param/multi_patch_param.h"
+#include "param/metrics.h"
 
 int main(int argc, char *argv[]){
 
@@ -14,14 +15,14 @@ int main(int argc, char *argv[]){
     Eigen::MatrixXi F1, F2, F3;
     std::vector<Eigen::MatrixXd> out_vec;
 
-    //igl::readOBJ("../data/patches/patch_3D_1.obj", V1, F1);
-    //igl::readOBJ("../data/patches/patch_3D_3.obj", V2, F2);
-    //igl::readOBJ("../data/patches/patch_3D_4.obj", V3, F3);
+    igl::readOBJ("../data/patches/patch_3D_1.obj", V1, F1);
+    igl::readOBJ("../data/patches/patch_3D_3.obj", V2, F2);
+    igl::readOBJ("../data/patches/patch_3D_4.obj", V3, F3);
     //igl::readOBJ("../data/seam_test/left_piece.obj", V1, F1);
     //igl::readOBJ("../data/seam_test/right_piece.obj", V2, F2);
-    igl::readOBJ("../data/seam_test_bis/top_piece.obj", V1, F1);
+    /*igl::readOBJ("../data/seam_test_bis/top_piece.obj", V1, F1);
     igl::readOBJ("../data/seam_test_bis/middle_piece.obj", V2, F2);
-    igl::readOBJ("../data/seam_test_bis/right_piece.obj", V3, F3);
+    igl::readOBJ("../data/seam_test_bis/right_piece.obj", V3, F3);*/
 
 
     /*Seam s; // for seam test
@@ -35,7 +36,7 @@ int main(int argc, char *argv[]){
     s.corres.push_back(std::make_pair(18, 17));
     s.corres.push_back(std::make_pair(7, 4));*/
 
-    Seam s1;
+    /*Seam s1;
     s1.patch1_id = 0;
     s1.patch2_id = 1;
     s1.corres.push_back(std::make_pair(33, 16));
@@ -53,7 +54,7 @@ int main(int argc, char *argv[]){
     s2.corres.push_back(std::make_pair(4, 22));
     s2.corres.push_back(std::make_pair(15, 30));
     s2.corres.push_back(std::make_pair(1, 19));
-    s2.corres.push_back(std::make_pair(10, 33));
+    s2.corres.push_back(std::make_pair(10, 33));*/
 
     if (n_patches == 2){
         finalParamMultiPatch({V1, V2}, {F1, F2}, 
@@ -67,7 +68,7 @@ int main(int argc, char *argv[]){
         finalParamMultiPatch({V1, V2, V3}, {F1, F2, F3}, 
                           {{}, {}, {}}, // dart dupl
                           {{}, {}, {}}, // dart tips
-                          {s1, s2}, // seams
+                          {}, // seams
                           out_vec);
     }
 
@@ -78,8 +79,18 @@ int main(int argc, char *argv[]){
     if (n_patches >=3)
         V3_out = out_vec[2];
 
-    V1_out.col(1) = V1_out.col(1).array() + 2.0;
-    V3_out.col(0) = V3_out.col(0).array() + 2.0;
+    Eigen::MatrixXd R1 = rotationVote(V1, V1_out, F1, Eigen::RowVector3d(0,1.0,0.0), Eigen::RowVector3d(0.0,1.0,0.0));
+    Eigen::MatrixXd R2 = rotationVote(V2, V2_out, F2, Eigen::RowVector3d(0,1.0,0.0), Eigen::RowVector3d(0.0,1.0,0.0));
+    Eigen::MatrixXd R3 = rotationVote(V3, V3_out, F3, Eigen::RowVector3d(0,1.0,0.0), Eigen::RowVector3d(0.0,1.0,0.0));
+
+
+    V1_out = (R1 * V1_out.transpose()).transpose();
+    V2_out = (R2 * V2_out.transpose()).transpose();
+    V3_out = (R3 * V3_out.transpose()).transpose();
+
+
+    V1_out.col(0) = V1_out.col(0).array() + 50.0;
+    V3_out.col(0) = V3_out.col(0).array() - 50.0;
 
     // --- VISUALIZATION ---
 
@@ -126,7 +137,7 @@ int main(int argc, char *argv[]){
 
     updateViz();
 
-    for (int i=0; i<s1.corres.size(); i++){
+    /*for (int i=0; i<s1.corres.size(); i++){
         Eigen::RowVector3d color = Eigen::RowVector3d::Random(); 
         viewer.data().add_points(V1_out.row(s1.corres[i].first), color);
         viewer.data().add_points(V2_out.row(s1.corres[i].second), color);
@@ -136,7 +147,7 @@ int main(int argc, char *argv[]){
         Eigen::RowVector3d color = Eigen::RowVector3d::Random(); 
         viewer.data().add_points(V2_out.row(s2.corres[i].first), color);
         viewer.data().add_points(V3_out.row(s2.corres[i].second), color);
-    }
+    }*/
 
 
     //viewer.data().line_width = 5;

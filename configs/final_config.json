@@ -1,0 +1,13 @@
+{
+	"max_iter": 20,
+ 	"stretch_coeff": 10.0,
+	"edges_coeff": 1.0,
+	"selected_coeff": 0.0,
+	"tri_align_coeff": 0.00,
+	"dart_sym_coeff": 100.0,
+	"seam_coeff": 10.0,
+	"debug": {
+		"save_init_params": true,
+		"save_init_paths": "../data/buggy/"
+	}
+}

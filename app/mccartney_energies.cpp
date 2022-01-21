@@ -259,8 +259,9 @@ int main(int argc, char *argv[]){
     std::vector<int> selec = autoSelect(V_3d, bnd);
     
     Eigen::RowVector3d from = V_2d.row(selec[0]) - V_2d.row(selec[1]);
-    Eigen::RowVector3d to(1.0, 0, 0);  
+    Eigen::RowVector3d to(0.0, 1.0, 0);  
     Eigen::Matrix3d Rot = computeRotation(from, to);
+    //Rot = Rot.transpose();
     V_2d = (Rot * V_2d.transpose()).transpose();
 
     double scale_f = 1.0;

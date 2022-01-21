@@ -53,6 +53,7 @@ public:
                                     Eigen::VectorXd& stretch_v);
 
     Eigen::MatrixXd getV2d(){return V_2d_;}
+    void setV2d(const Eigen::MatrixXd& V_2d){V_2d_ = V_2d;}
 
     bool constraintSatisfied() const {
         if (stretch_u_.rows() < 1) return false;
@@ -85,6 +86,7 @@ private:
 
     // config
     bool enable_intersection_check_ = true;
+    bool rotate_each_iter_ = true;
 
     // Sets pairs of vertex ids which should be symmetrical in a given dart.
     // first indexing: dart id

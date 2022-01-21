@@ -1,6 +1,7 @@
 #include "param/cloth_param.h"
 #include <igl/avg_edge_length.h>
 #include <nlohmann/json.hpp>
+#include <fstream>
 #include "param/self_intersect.h"
 
 //#define DEBUG_CLOTH_PARAM
@@ -55,15 +56,30 @@ ClothParam::ClothParam(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
     std::vector<int> selec = autoSelect(V_3d, bnd_);
     bo_.setSelectedVertices(selec);
 
-    Eigen::RowVector3d from = V_2d_.row(selec[0]) - V_2d_.row(selec[1]);
-    Eigen::RowVector3d to(1.0, 0, 0);  
-    Eigen::Matrix3d R = computeRotation(from, to);
-    V_2d_ = (R * V_2d_.transpose()).transpose();
+    bool rotate_init = false;
+    if (rotate_init){
+        Eigen::RowVector3d from = V_2d_.row(selec[0]) - V_2d_.row(selec[1]);
+        Eigen::RowVector3d to(0.0, 1.0, 0);  
+        Eigen::Matrix3d R = computeRotation(from, to);
+        V_2d_ = (R * V_2d_.transpose()).transpose();
+    }
+
+    if (rotate_each_iter_){
+        Eigen::MatrixXd R1 = rotationVote(V_3d_, V_2d_, F_, Eigen::RowVector3d(0, 1.0,0.0), 
+                                                            Eigen::RowVector3d(0.0,1.0,0.0));
+        V_2d_ = (R1 * V_2d_.transpose()).transpose();
+    }
 };
 
 void ClothParam::paramIter(int n_iter){
     for (int i=0; i<n_iter; i++){
         V_2d_ = bo_.localGlobal(V_2d_, V_3d_, F_);
+
+        if (rotate_each_iter_){
+            Eigen::MatrixXd R1 = rotationVote(V_3d_, V_2d_, F_, Eigen::RowVector3d(0, 1.0,0.0), 
+                                                                Eigen::RowVector3d(0.0,1.0,0.0));
+            V_2d_ = (R1 * V_2d_.transpose()).transpose();
+        }
     }
 }
 
@@ -94,6 +110,12 @@ bool ClothParam::paramAttempt(int max_iter){
             return true;
         }*/
         V_2d_ = bo_.localGlobal(V_2d_, V_3d_, F_);
+
+        if (rotate_each_iter_){
+            Eigen::MatrixXd R1 = rotationVote(V_3d_, V_2d_, F_, Eigen::RowVector3d(0, 1.0,0.0), 
+                                                                Eigen::RowVector3d(0.0,1.0,0.0));
+            V_2d_ = (R1 * V_2d_.transpose()).transpose();
+        }
         
         if (enable_intersection_check_){
             if (checkSelfIntersect()){
@@ -103,7 +125,8 @@ bool ClothParam::paramAttempt(int max_iter){
             }
         }
     }
-    return constraintSatisfied();
+    bo_.measureScore(V_2d_, V_3d_, F_, stretch_u_, stretch_v_);
+    return constraintSatisfied() && !checkSelfIntersect();
 }
 
 void ClothParam::printStretchStats() const {
@@ -113,18 +136,30 @@ void ClothParam::printStretchStats() const {
     printf("V: %f -> %f (%f)\n", stretch_v_.minCoeff(), stretch_v_.maxCoeff(), stretch_v_.mean());
 };
 
+void vectorSanityCheck(Eigen::VectorXd& vec){
+    if (std::isnan(vec.maxCoeff()) ||
+        std::isnan(vec.minCoeff())){
+        
+        std::cout << "Sanitizing nan..." << std::endl;
+        vec = Eigen::VectorXd::Constant(vec.rows(), 10e8);
+    }
+}
 
 void ClothParam::getStretchStats(Eigen::VectorXd& stretch_u, Eigen::VectorXd& stretch_v) const {
+    vectorSanityCheck(stretch_u);
+    vectorSanityCheck(stretch_v);
     stretch_u = stretch_u_;
     stretch_v = stretch_v_;
 }
-
 
 void ClothParam::measureStretchStats(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d, 
                                 const Eigen::MatrixXi& F, Eigen::VectorXd& stretch_u, 
                                 Eigen::VectorXd& stretch_v){
     BaryOptimizer bo;
     bo.measureScore(V_2d, V_3d, F, stretch_u, stretch_v);
+
+    vectorSanityCheck(stretch_u);
+    vectorSanityCheck(stretch_v);
 }
 
 void ClothParam::setAlignmentVertexPair(int v1_id, int v2_id){
