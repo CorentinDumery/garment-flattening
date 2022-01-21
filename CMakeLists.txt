@@ -9,6 +9,9 @@ add_definitions(-DIGL_VIEWER_VIEWER_QUIET)
 find_package(OpenMP REQUIRED)
 
 add_subdirectory(lib/libigl)
+
+add_subdirectory(lib/json)
+include_directories(lib/json/include)
 #add_subdirectory(lib/vcglib)
 
 file(GLOB SRCFILES src/*.cpp)
@@ -46,7 +49,7 @@ target_link_libraries(cut igl::core)
 file(GLOB PARAMSRC src/param/*.cpp)
 
 add_executable(multi_param app/multi_param.cpp ${PARAMSRC})
-target_link_libraries(multi_param igl::core igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::triangle)
+target_link_libraries(multi_param igl::core igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::triangle nlohmann_json)
 
 #add_executable(markables app/markables.cpp ${VCGSRC} ${OLDIGLSRC} ${PARAFASHIONFILES} ${TRACINGFILES})
 #target_link_libraries(markables igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png)

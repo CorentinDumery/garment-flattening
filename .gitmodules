@@ -7,3 +7,6 @@
 [submodule "lib/vcglib"]
 	path = lib/vcglib
 	url = https://github.com/cnr-isti-vclab/vcglib.git
+[submodule "lib/json"]
+	path = lib/json
+	url = https://github.com/nlohmann/json.git
