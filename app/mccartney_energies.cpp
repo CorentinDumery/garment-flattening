@@ -4,6 +4,7 @@
 #include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/readOBJ.h>
+#include <igl/writeOBJ.h>
 #include <igl/png/readPNG.h>
 #include <igl/edges.h>
 #include <igl/unproject_onto_mesh.h>
@@ -563,6 +564,11 @@ int main(int argc, char *argv[]){
             ImGui::Text("U: %f, (%f -> %f)", V_2d.col(0).maxCoeff(), V_2d.col(0).minCoeff(), V_2d.col(0).minCoeff(), V_2d.col(0).maxCoeff());
             ImGui::Text("V: %f, (%f -> %f)", V_2d.col(1).maxCoeff(), V_2d.col(1).minCoeff(), V_2d.col(1).minCoeff(), V_2d.col(1).maxCoeff());
 
+            ImGui::Separator();
+
+            if (ImGui::Button("Save UV")){
+                igl::writeOBJ("../saved_uv.obj", V_2d, F);
+            }
             ImGui::End();
         }
     

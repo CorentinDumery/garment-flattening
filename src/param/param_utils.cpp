@@ -267,8 +267,21 @@ Eigen::Matrix3d rotationVote(const Eigen::MatrixXd& V_3d,
     // Ep = Ap + vector
     // then project Ep in Ep_proj, and convert to 2D
 
+
+    // For the case of 90 degrees angle with the desired grain direction we have no good solution, 
+    // it’s a singularity (branching point). So we need to isolate the singularity. 
+    // Meaning, we compute all the individual angles in the range [-90, 90], 
+    // and then we discard the angles who are in the range [90-epsilon, 90] and [-90, -90+epsilon]. 
+    // We simply don’t include those in the averaging. We average the remaining ones just normally, 
+    // arithmetic average, and get the rotation matrix from that.
+    // When you compute the individual rotation angle, you take the smallest absolute value angle between the options alpha, 180-alpha
+    // and then you take the equivalent of that angle in the -90,90 quadrant
+
+    //todo this
+    
     Eigen::VectorXd area;
     igl::doublearea(V_3d, F, area);
+    
     double total_weights = 0.0;
     Eigen::RowVector3d average_proj = Eigen::RowVector3d::Zero(V_2d.rows());
     for (int f_id=0; f_id<F.rows(); f_id++){

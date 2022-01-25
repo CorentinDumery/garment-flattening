@@ -64,3 +64,6 @@ target_link_libraries(multi_param igl::core igl::opengl_glfw igl::core igl::open
 add_executable(param app/param.cpp ${PARAMSRC})
 target_link_libraries(param igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
 target_include_directories(param PUBLIC include/param)
+
+add_executable(make_uv app/make_uv.cpp)
+target_link_libraries(make_uv igl::core)
