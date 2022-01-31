@@ -12,3 +12,8 @@ void measureStretchScore(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3
 void measureSeamScore(const std::vector<Eigen::MatrixXd>& vec_V_2d,
                       const std::vector<Seam>& seams,
                       double& length_error, double& reflec_error);
+
+void measureAlignmentScore(const Eigen::MatrixXd& V_2d,
+                           const Eigen::MatrixXd& V_3d,
+                           const Eigen::MatrixXi& F,
+                           Eigen::VectorXd& align_error);

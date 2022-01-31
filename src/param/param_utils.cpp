@@ -252,7 +252,7 @@ Eigen::Matrix3d rotationVote(const Eigen::MatrixXd& V_3d,
                              const Eigen::MatrixXi& F,
                              const Eigen::RowVector3d& target_3d,
                              const Eigen::RowVector3d& target_2d){
-
+                                 
     if (target_2d(2) != 0) std::cout << "Wrong usage of rotationVote" << std::endl;
     if (V_2d.cols() != 3) std::cout << "Wrong usage of rotationVote, V_2d should have 3 cols for convenience" << std::endl;
 
@@ -283,7 +283,7 @@ Eigen::Matrix3d rotationVote(const Eigen::MatrixXd& V_3d,
     igl::doublearea(V_3d, F, area);
     
     double total_weights = 0.0;
-    Eigen::RowVector3d average_proj = Eigen::RowVector3d::Zero(V_2d.rows());
+    Eigen::RowVector3d average_proj = Eigen::RowVector3d::Zero();
     for (int f_id=0; f_id<F.rows(); f_id++){
         Eigen::RowVector3d A = V_2d.row(F(f_id, 0));
         Eigen::RowVector3d B = V_2d.row(F(f_id, 1));

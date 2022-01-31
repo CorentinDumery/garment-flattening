@@ -48,8 +48,15 @@ target_link_libraries(cut igl::core)
 
 file(GLOB PARAMSRC src/param/*.cpp)
 
-add_executable(multi_param app/multi_param.cpp ${PARAMSRC})
+add_executable(measure_alignment app/measure_alignment.cpp ${PARAMSRC})
+target_link_libraries(measure_alignment igl::core)
+
+add_executable(multi_param app/multi_param.cpp ${PARAMSRC} src/param/metrics.cpp)
 target_link_libraries(multi_param igl::core igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::triangle nlohmann_json)
+
+
+add_executable(multiple_poses app/multiple_poses.cpp ${PARAMSRC})
+target_link_libraries(multiple_poses igl::core igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::triangle nlohmann_json)
 
 #add_executable(markables app/markables.cpp ${VCGSRC} ${OLDIGLSRC} ${PARAFASHIONFILES} ${TRACINGFILES})
 #target_link_libraries(markables igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png)

@@ -1,6 +1,5 @@
 #include "param/metrics.h"
 
-
 // TODO this is a duplicate of BaryOptimizer::measureScore
 void measureStretchScore(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d, 
                          const Eigen::MatrixXi& F, Eigen::VectorXd& stretch_u_vec,
@@ -185,3 +184,56 @@ void measureSeamScore(const std::vector<Eigen::MatrixXd>& vec_V_2d,
     std::cout << "Worst seam ref error: " << reflec_error << std::endl;
     std::cout << "Total seam length error: " << length_error << std::endl;
 };
+
+void measureAlignmentScore(const Eigen::MatrixXd& V_2d,
+                           const Eigen::MatrixXd& V_3d,
+                           const Eigen::MatrixXi& F,
+                           Eigen::VectorXd& align_error){
+
+    if (V_2d.cols() != 3) std::cout << "wrong usage measureAlignmentScore" << std::endl;
+
+    align_error.resize(F.rows());
+
+    Eigen::RowVector3d target2d(0, 1.0, 0);
+    Eigen::RowVector3d target3d(0, 1.0, 0);
+
+    Eigen::RowVector3d ref_align;
+
+    for (int f_id=0; f_id<F.rows(); f_id++){
+        Eigen::RowVector3d A = V_2d.row(F(f_id, 0));
+        Eigen::RowVector3d B = V_2d.row(F(f_id, 1));
+        Eigen::RowVector3d C = V_2d.row(F(f_id, 2));
+        Eigen::RowVector3d Ap = V_3d.row(F(f_id, 0));
+        Eigen::RowVector3d Bp = V_3d.row(F(f_id, 1));
+        Eigen::RowVector3d Cp = V_3d.row(F(f_id, 2));
+        Eigen::RowVector3d Ep = Ap + target3d;
+ 
+        Eigen::Vector3d BpAp = (Bp - Ap).transpose();
+        Eigen::Vector3d CpAp = (Cp - Ap).transpose();
+        Eigen::RowVector3d n = (BpAp.cross(CpAp)).transpose();
+        n = n.normalized();
+        Eigen::RowVector3d v = Ep - Ap;
+        double dist = v(0) * n(0) + v(1) * n(1) + v(2) * n(2);
+        Eigen::RowVector3d Ep_proj = Ep - dist * n;
+
+        Eigen::Vector3d bary_E_proj = barycentricCoords(Ep_proj, Ap, Bp, Cp);
+        Eigen::RowVector3d E = bary_E_proj(0) * A
+                             + bary_E_proj(1) * B
+                             + bary_E_proj(2) * C;
+        Eigen::RowVector3d AE = E - A;
+
+        AE /= AE.norm();
+
+        align_error(f_id) = std::acos(AE.dot(target2d));
+        Eigen::RowVector3d cross = AE.cross(target2d);
+
+        if (f_id == 0) ref_align = cross; 
+
+        if (ref_align.dot(cross) < 0) { // Or > 0
+            align_error(f_id) = -std::acos(AE.dot(target2d));
+        }
+
+        
+    }
+
+}

@@ -34,7 +34,7 @@ public:
     // ------------- CONFIG parameters ------------- // 
     // Penalize stretch on U/V axes 
     bool enable_stretch_eqs_ = true;
-    double stretch_coeff_ = 10.0;
+    double stretch_coeff_ = 5.0;
 
     // Place first vertex in (0,0)
     bool enable_set_seed_eqs_ = true;
@@ -58,7 +58,7 @@ public:
 
     // Match target positions for seams
     bool enable_seam_eqs_ = true;
-    double seam_coeff_ = 000.0;//10.0;
+    double seam_coeff_ = 1.0;//10.0;
 
     // this one doesn't do what it's supposed to
     bool enable_angle_eqs_ = false;
@@ -92,6 +92,9 @@ public:
         p_ids_seams_ = p_ids;
     }
 
+    Eigen::VectorXd getB(){return b;};
+    std::vector<Eigen::VectorXd> other_bs;
+
 private:
 
     int next_equation_id_ = 0;
@@ -108,6 +111,7 @@ private:
     DiagonalMatrixXd W; 
     Eigen::MatrixXd V_tri_2d;
     Eigen::MatrixXd V_tri_3d;
+
 
     std::vector<Eigen::MatrixXd> targets_p_seams_;
     std::vector<Eigen::VectorXi> p_ids_seams_;
