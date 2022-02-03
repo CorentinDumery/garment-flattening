@@ -12,7 +12,6 @@ add_subdirectory(lib/libigl)
 
 add_subdirectory(lib/json)
 include_directories(lib/json/include)
-#add_subdirectory(lib/vcglib)
 
 file(GLOB SRCFILES src/*.cpp)
 file(GLOB PARAFASHIONFILES src/parafashion/*.cpp)
@@ -57,16 +56,6 @@ target_link_libraries(multi_param igl::core igl::opengl_glfw igl::core igl::open
 
 add_executable(multiple_poses app/multiple_poses.cpp ${PARAMSRC})
 target_link_libraries(multiple_poses igl::core igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::triangle nlohmann_json)
-
-#add_executable(markables app/markables.cpp ${VCGSRC} ${OLDIGLSRC} ${PARAFASHIONFILES} ${TRACINGFILES})
-#target_link_libraries(markables igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png)
-#target_include_directories(markables 
-#PUBLIC lib/vcglib/    
-#        lib/oldigl/    
-#        lib/field_tracing/tracing/)
-
-#add_executable(crosses app/crosses.cpp)
-#target_link_libraries(crosses igl::opengl_glfw igl::core igl::opengl_glfw_imgui)
 
 add_executable(param app/param.cpp ${PARAMSRC})
 target_link_libraries(param igl::opengl_glfw igl::core igl::opengl_glfw_imgui)

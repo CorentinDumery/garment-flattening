@@ -59,11 +59,6 @@ int main(int argc, char *argv[]){
 
     updateViz();
 
-
-    //viewer.data().line_width = 5;
-    //viewer.data().point_size = 10;
-    //viewer.core().orthographic = true;
-
     viewer.core().set_rotation_type(igl::opengl::ViewerCore::ROTATION_TYPE_TRACKBALL);
     viewer.core().background_color = Eigen::Vector4f(202.0/255.0, 190.0/255.0, 232.0/255.0, 1.0);
     viewer.launch();

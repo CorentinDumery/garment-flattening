@@ -290,7 +290,3 @@ public:
 
     }
 };
-
-class DiamondDart : Dart {
-
-};
