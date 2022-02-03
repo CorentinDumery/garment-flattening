@@ -1,12 +1,6 @@
 [submodule "lib/libigl"]
 	path = lib/libigl
 	url = https://github.com/libigl/libigl.git
-[submodule "lib/Directional"]
-	path = lib/Directional
-	url = https://github.com/avaxman/Directional.git
-[submodule "lib/vcglib"]
-	path = lib/vcglib
-	url = https://github.com/cnr-isti-vclab/vcglib.git
 [submodule "lib/json"]
 	path = lib/json
 	url = https://github.com/nlohmann/json.git
