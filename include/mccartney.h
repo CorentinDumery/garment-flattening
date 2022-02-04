@@ -78,7 +78,6 @@ Eigen::MatrixXd computeMcCartneyErrors(const Eigen::MatrixXd& V_2di,
     double d = BC(1) / BC(0); 
     double alpha = - B(1) / (d );
     alpha = - B(1) / BC(1);
-    //std::cout << "alpha " << alpha << std::endl;
 
     Eigen::RowVector3d X = B + alpha * BC;
     Eigen::RowVector3d Bp = V_3d.row(1);

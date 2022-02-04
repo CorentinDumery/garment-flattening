@@ -101,7 +101,6 @@ private:
     int n_equations_ = 0;
     int n_triplets_ = 0;
     std::vector<int> selected_vs_;
-    //std::vector<SimpleDart> simple_darts_;
     std::vector<UnorderedDart> unordered_darts_;
     int seam_size_ = 0;
     
