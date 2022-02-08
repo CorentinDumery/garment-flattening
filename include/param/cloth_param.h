@@ -1,3 +1,10 @@
+/**
+ * @author Corentin Dumery
+ * @brief Interface for woven textile parameterization.
+ * @date 2022-02-04
+ * 
+ */
+
 #pragma once
 
 #include <Eigen/Core>
@@ -15,7 +22,9 @@ public:
 
     // ----- MAIN FUNCTIONS ----- //
 
-    // Initialize and allocate memory
+    // Initialize and allocate memory.
+    // max_stretch: target stretch
+    // Dart and seam information is optional.
     ClothParam(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
                double max_stretch = 0.05,
                const std::vector<std::vector<std::pair<int, int>>>& dart_duplicates = {},
@@ -30,20 +39,23 @@ public:
 
     // ----- OPTIONAL ----- //
 
-    // Tries to align V axis in parameterization with
-    // direction v1 -> v2 
-    void setAlignmentVertexPair(int v1_id, int v2_id);
-
+    // Quick boundary self intersection test
     bool checkSelfIntersect() const;
 
+    // Define seam targets as explained in paper
     void setSeamTargets(const std::vector<Eigen::MatrixXd>& targets_p,
                         const std::vector<Eigen::VectorXi>& p_ids){
         bo_.setSeamTargets(targets_p, p_ids);
     }
 
+    // Tries to align V axis in parameterization with
+    // direction v1 -> v2 
+    // (only if enable_selected_eqs_ is enabled)
+    void setAlignmentVertexPair(int v1_id, int v2_id);
+
     // ----- MISC. ----- //
 
-    // Runs param for specified number of iterations, without intersection check or 
+    // Runs param for specified number of iterations, without stopping
     void paramIter(int n_iter);
 
     void printStretchStats() const;
@@ -71,6 +83,8 @@ public:
 
     void loadConfig(std::string config_path);
 
+    // -- Multiple poses -- //
+    // We share b vectors across several instances to handle multiple poses
     Eigen::VectorXd getB() {return bo_.getB();};
     void stealSubBs(std::vector<std::unique_ptr<ClothParam>>& subs){
         std::vector<Eigen::VectorXd> other_bs;

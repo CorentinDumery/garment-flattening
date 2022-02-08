@@ -1,17 +1,22 @@
-
+/**
+ * @author Corentin Dumery
+ * @brief Finds the best reflection between two similar lines in a least squares sense,
+ * and forces reflectability
+ * @date 2022-02-04
+ * 
+ */
 #include <igl/opengl/glfw/Viewer.h>
 #include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <cmath>
 
-#include "procustes.h"
+#include <param/param_utils.h>
 
 void forceReflectability(Eigen::MatrixXd& line1,
                          Eigen::MatrixXd& line2){
-
     Eigen::MatrixXd R_est;
     Eigen::VectorXd T_est;
-    procustes(line1, line2, R_est, T_est);
+    procrustes(line1, line2, R_est, T_est);
 
     Eigen::MatrixXd line1t = line1.transpose();
     Eigen::MatrixXd line2t = line2.transpose();
@@ -89,29 +94,20 @@ int main(int argc, char *argv[]){
     auto compLine3 = [&](){
         Eigen::MatrixXd R_est;
         Eigen::VectorXd T_est;
-        procustes(line1, line2, R_est, T_est);
+        procrustes(line1, line2, R_est, T_est);
         
-        /*
-        Eigen::MatrixXd line2t = line2.transpose();
-        line3t = line2t.colwise() - T_est;
-        line3t = (R_est.transpose() * line3t);
-        line3 = line3t.transpose();
-        //*/
-
-        //*
         Eigen::MatrixXd line3t = line1.transpose();
         line3t = (R_est * line3t);
         line3t = line3t.colwise() + T_est;
-        line3 = line3t.transpose();//*/
+        line3 = line3t.transpose();
     };
 
     compLine3();
 
-
-    // --- VISUALIZATION ---
+    // --- VISUALIZATION --- //
 
     Eigen::MatrixXi E(16, 2);
-    E<< 9, 4, 
+    E << 9, 4, 
         10, 1, 
         11, 3, 
         12, 2, 
@@ -119,7 +115,7 @@ int main(int argc, char *argv[]){
         14, 6, 
         15, 7, 
         16, 8, 
-        5, 9, 
+         5, 9, 
         6, 10, 
         7, 11, 
         8, 12, 
@@ -147,7 +143,6 @@ int main(int argc, char *argv[]){
         viewer.data().clear_edges();
         viewer.data().clear_points();
         compLine3();
-            
         
         viewer.data().add_points(line1, Eigen::RowVector3d(1.0, 0.0, 0.0));
         auto edges1 = lineFromPoints(line1);
@@ -156,7 +151,6 @@ int main(int argc, char *argv[]){
         viewer.data().add_points(line2, Eigen::RowVector3d(0.0, 0.0, 1.0));
         auto edges2 = lineFromPoints(line2);
         viewer.data().add_edges(edges2.first, edges2.second, Eigen::RowVector3d(0.0, 0.0, 1.0));
-
 
         viewer.data().add_points(line3, Eigen::RowVector3d(1.0, 0.0, 1.0));
         auto edges3 = lineFromPoints(line3);
@@ -174,24 +168,21 @@ int main(int argc, char *argv[]){
     menu.callback_draw_custom_window = [&]() {
         ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(350, -1), ImGuiCond_FirstUseEver);
-        if (ImGui::Begin("Procustes")) {
-            ImGui::Text("Distance: %f", (line1 - line3).norm());
+        if (ImGui::Begin("Procrustes")) {
+            ImGui::Text("Distance Blue <-> Pink: %f", (line2 - line3).norm());
             if (ImGui::Button("Align lines", ImVec2(-1, 0))){
                 forceReflectability(line1, line2);
                 updateViz();
             }
             ImGui::End();
         }
-    
     };
 
     updateViz();
 
-
     viewer.data().line_width = 5;
     viewer.data().point_size = 10;
     viewer.core().orthographic = true;
-
     viewer.core().set_rotation_type(igl::opengl::ViewerCore::ROTATION_TYPE_TRACKBALL);
     viewer.core().background_color = Eigen::Vector4f(202.0/255.0, 190.0/255.0, 232.0/255.0, 1.0);
     viewer.launch();

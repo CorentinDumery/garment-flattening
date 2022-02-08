@@ -23,7 +23,7 @@ void computeTargetPositions(const Eigen::MatrixXd& V1,
 
     Eigen::MatrixXd R_est;
     Eigen::VectorXd T_est;
-    procustes(points_p.leftCols(2), points_q.leftCols(2), R_est, T_est);
+    procrustes(points_p.leftCols(2), points_q.leftCols(2), R_est, T_est);
 
     Eigen::MatrixXd points_pt = points_p.transpose();
     Eigen::MatrixXd points_qt = points_q.transpose();

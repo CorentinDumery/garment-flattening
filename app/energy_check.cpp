@@ -4,7 +4,7 @@
 #include <iostream>
 #include <cmath>
 
-#include "procustes.h"
+#include "procrustes.h"
 
 double prop1(const Eigen::MatrixXd& V_ref, const Eigen::MatrixXd& V_def){
     Eigen::MatrixXd delta = V_ref - V_def;
@@ -49,7 +49,7 @@ double prop5(const Eigen::MatrixXd& V_ref, const Eigen::MatrixXd& V_def){
 
     Eigen::MatrixXd R_est;
     Eigen::VectorXd T_est;
-    procustes(p1, p2, R_est, T_est);
+    procrustes(p1, p2, R_est, T_est);
 
     /*Eigen::MatrixXd p2_r;
     p2_r = p2.transpose();

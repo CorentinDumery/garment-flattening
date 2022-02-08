@@ -8,7 +8,7 @@ void computeFrameErrors(const Eigen::MatrixXd& V_2di,
                         double& Esu, double &Esv, double& Er){
 
     Eigen::MatrixXd V_ref2 = V_2di;
-    Eigen::MatrixXd V_def2 = move3Dto2D(V_3di);;
+    Eigen::MatrixXd V_def2 = move3Dto2D(V_3di);
 
     
     for (int i=0; i<3; i++){
@@ -16,23 +16,15 @@ void computeFrameErrors(const Eigen::MatrixXd& V_2di,
         V_def2(i, 2) = 1.0;
     }
 
-
-    std::cout << "V_ref2: " << V_ref2 << std::endl;
-    std::cout << "V_def2: " << V_def2 << std::endl;
-
     V_ref2.transposeInPlace();
     V_def2.transposeInPlace();
 
     Eigen::MatrixXd T = V_def2 * V_ref2.inverse();
 
-    std::cout << std::endl << "Estimated T: " << std::endl << T << std::endl;
-
     double Su = T.col(0).topRows(2).norm();
     Su = T(0,0)*T(0,0) + T(1,0)*T(1,0);
     double Sv = T.col(1).topRows(2).norm();
     Sv = T(0,1)*T(0,1) + T(1,1)*T(1,1);
-    std::cout << std::endl << "Su: " << Su << std::endl;
-    std::cout << "Sv: " << Sv << std::endl;
 
     // Nullify translation
     T(0,2) = 0.0;
@@ -45,10 +37,8 @@ void computeFrameErrors(const Eigen::MatrixXd& V_2di,
     v2(2) = 0;
 
     double angle = std::acos(v1.dot(v2)/(v1.topRows(2).norm() * v2.topRows(2).norm()));
-    std::cout << "Angle: " << angle << " (" << angle * 180.0 / 3.1415 <<" deg)"<< std::endl;
-
-    Esu = Su + 1.0/Su - 2.0;//std::pow((1.0 - Su), 2);
-    Esv = Sv + 1.0/Sv - 2.0;//std::pow((1.0 - Sv), 2);
+    Esu = Su + 1.0/Su - 2.0;
+    Esv = Sv + 1.0/Sv - 2.0;
     Er = std::pow((3.1415/2.0 - angle), 2);
 }
 
@@ -62,7 +52,9 @@ Eigen::MatrixXd computeMcCartneyErrors(const Eigen::MatrixXd& V_2di,
 
     Eigen::MatrixXd V_3d(3,3); // We'll move V_3di to align with V_2d
     Eigen::MatrixXd V_2d = V_2di;
-    V_2d.rowwise() -= V_2d.row(0);
+    V_2d.row(1) -= V_2d.row(0);
+    V_2d.row(2) -= V_2d.row(0);
+    V_2d.row(0) -= V_2d.row(0);
     V_3d = move3Dto2D(V_3di);
 
     if (V_2d.row(0).maxCoeff() > 0 || V_2d.col(2).maxCoeff() > 0){

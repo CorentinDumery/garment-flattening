@@ -12,7 +12,7 @@ line3 = (R_est * line3);
 line3 = line3.colwise() + T_est;
 */
 
-void procustes(const Eigen::MatrixXd& points1, // to
+void procrustes(const Eigen::MatrixXd& points1, // to
                const Eigen::MatrixXd& points2, // from
                Eigen::MatrixXd& R_est,
                Eigen::VectorXd& T_est);

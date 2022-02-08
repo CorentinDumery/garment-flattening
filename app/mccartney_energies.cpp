@@ -18,10 +18,9 @@
 #endif
 
 #include "mccartney.h"
-#include "param/auto_select.h"
-//#include "procustes.h"
-#include "param/bary_optimizer.h"
-#include "param/self_intersect.h"
+#include <param/auto_select.h>
+#include <param/bary_optimizer.h>
+#include <param/self_intersect.h>
 
 igl::opengl::glfw::Viewer viewer; // TODO MOVE
 
@@ -38,7 +37,6 @@ Eigen::MatrixXd fromVectorToColors(const Eigen::VectorXd& vector){
     adjusted = adjusted.array() * 100.0;
 
     printMatStats("vector", vector);
-
 
     adjusted = adjusted.cwiseMin(1.0);
     adjusted = adjusted.cwiseMax(0.0);
@@ -66,7 +64,7 @@ Eigen::VectorXd paramLocalGlobal(const Eigen::MatrixXd& V_3d, const Eigen::Matri
         
         Eigen::MatrixXd R_est;
         Eigen::VectorXd T_est;
-        procustes(p1, p2, R_est, T_est);
+        procrustes(p1, p2, R_est, T_est);
 
         std::cout << R_est << std::endl << std::endl;
     }*/
@@ -84,7 +82,7 @@ Eigen::VectorXd paramLocalGlobal(const Eigen::MatrixXd& V_3d, const Eigen::Matri
 
         Eigen::MatrixXd R_est;
         Eigen::VectorXd T_est;
-        procustes(p1, p2, R_est, T_est);
+        procrustes(p1, p2, R_est, T_est);
 
         /*Eigen::MatrixXd p2_r;
         p2_r = p2.transpose();

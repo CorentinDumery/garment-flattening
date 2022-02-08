@@ -64,7 +64,7 @@ void measureStretchScore(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3
         V_tri_3d = move3Dto2D(V_tri_3d);
         Eigen::MatrixXd R_est;
         Eigen::VectorXd T_est;
-        procustes(V_tri_2d, V_tri_3d, R_est, T_est);
+        procrustes(V_tri_2d, V_tri_3d, R_est, T_est);
         Eigen::MatrixXd p2 = V_tri_3d;
 
         Eigen::MatrixXd p2_rt, p2_r;

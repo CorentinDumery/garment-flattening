@@ -1,3 +1,13 @@
+/**
+ * @author Corentin Dumery
+ * @brief Receives a mesh as input and computes its parameterization.
+ * This class is meant to define and solve a weighted sparse linear system
+ * from the input mesh, but does *not* store the mesh.
+ * Memory pre-allocated upon initialization for performance.
+ * @date 2022-02-04
+ * 
+ */
+
 #pragma once
 
 #include <Eigen/Core>
@@ -75,6 +85,7 @@ public:
     }
     // ------------- CONFIG end        ------------- // 
 
+    // if enable_tri_align_eqs_ is enabled, we try to align with the selected vertices
     void setSelectedVertices(std::vector<int> selected_vs) {selected_vs_ = selected_vs;};
     std::vector<int> getSelectedVertices() const {return selected_vs_;}
 
@@ -110,7 +121,6 @@ private:
     DiagonalMatrixXd W; 
     Eigen::MatrixXd V_tri_2d;
     Eigen::MatrixXd V_tri_3d;
-
 
     std::vector<Eigen::MatrixXd> targets_p_seams_;
     std::vector<Eigen::VectorXi> p_ids_seams_;

@@ -5,9 +5,9 @@
 #include "param/self_intersect.h"
 
 //#define DEBUG_CLOTH_PARAM
-//#ifdef DEBUG_CLOTH_PARAM
+#ifdef DEBUG_CLOTH_PARAM
 #include <igl/writeOBJ.h>
-//#endif
+#endif
 
 #define CHECK_TOPOLOGY_PARAM
 
@@ -40,30 +40,13 @@ ClothParam::ClothParam(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
 
     bool rescale_init = true;
     if (rescale_init){
-        //V_2d_ *= (V_3d_.col(0).maxCoeff() - V_3d_.col(0).minCoeff()) / (V_2d_.col(0).maxCoeff() - V_2d_.col(0).minCoeff()); // doesn't work because axes are not the same!
         V_2d_ *= igl::avg_edge_length(V_3d_, F_) / igl::avg_edge_length(V_2d_, F_);
     }
 
-    /*if (checkSelfIntersect()){
-        //std::cout << "Self intersecting at init" << std::endl;
-        // do something ?
-    }*/
     setDartPairs(dart_duplicates, dart_tips);
     bo_.setSeamSize(seam_size_);
     bo_.allocateMemory(F.rows(), V_3d.rows());
-    //bo_.measureScore(V_2d_, V_3d_, F_, stretch_u_, stretch_v_);
     
-    std::vector<int> selec = autoSelect(V_3d, bnd_);
-    bo_.setSelectedVertices(selec);
-
-    bool rotate_init = false;
-    if (rotate_init){
-        Eigen::RowVector3d from = V_2d_.row(selec[0]) - V_2d_.row(selec[1]);
-        Eigen::RowVector3d to(0.0, 1.0, 0);  
-        Eigen::Matrix3d R = computeRotation(from, to);
-        V_2d_ = (R * V_2d_.transpose()).transpose();
-    }
-
     if (rotate_each_iter_){
         Eigen::MatrixXd R1 = rotationVote(V_3d_, V_2d_, F_, Eigen::RowVector3d(0, 1.0,0.0), 
                                                             Eigen::RowVector3d(0.0,1.0,0.0));
@@ -99,12 +82,11 @@ bool ClothParam::paramAttempt(int max_iter){
             igl::writeOBJ("../data/buggy/not_good.obj", V_3d_, F_);
             igl::writeOBJ("../data/buggy/not_good_uv.obj", V_2d_, F_);
         }
-        #endif
         if (std::isnan(stretch_u_.maxCoeff())){ // not really supposed to happen if the initialization is ok
             igl::writeOBJ("./nanned.obj", V_3d_, F_);
             igl::writeOBJ("./nanned_uv.obj", V_2d_, F_);
         }
-
+        #endif
 
         /*if (constraintSatisfied()){
             return true;
@@ -139,7 +121,6 @@ void ClothParam::printStretchStats() const {
 void vectorSanityCheck(Eigen::VectorXd& vec){
     if (std::isnan(vec.maxCoeff()) ||
         std::isnan(vec.minCoeff())){
-        
         std::cout << "Sanitizing nan..." << std::endl;
         vec = Eigen::VectorXd::Constant(vec.rows(), 10e8);
     }
@@ -157,7 +138,6 @@ void ClothParam::measureStretchStats(const Eigen::MatrixXd& V_2d, const Eigen::M
                                 Eigen::VectorXd& stretch_v){
     BaryOptimizer bo;
     bo.measureScore(V_2d, V_3d, F, stretch_u, stretch_v);
-
     vectorSanityCheck(stretch_u);
     vectorSanityCheck(stretch_v);
 }

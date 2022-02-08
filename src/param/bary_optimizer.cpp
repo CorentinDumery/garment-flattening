@@ -10,7 +10,7 @@
 
 #include "param/param_utils.h"
 //#define LOCALGLOBAL_DEBUG
-//#define LOCALGLOBAL_TIMING
+#define LOCALGLOBAL_TIMING
 //#define LOCALGLOBAL_DEBUG_SMALL // print full matrices, should be small
 
 #ifdef LOCALGLOBAL_TIMING
@@ -38,15 +38,6 @@ void BaryOptimizer::allocateMemory(int n_faces, int n_vs){
 
         #ifdef LOCALGLOBAL_DEBUG
         std::cout << "stretch eqs: " << 2 * n_faces << std::endl;
-        #endif
-    }
-
-    if (enable_angle_eqs_) {
-        n_equations_ += 2 * n_faces;
-        n_triplets_ += 3 * 2 * n_faces; 
-
-        #ifdef LOCALGLOBAL_DEBUG
-        std::cout << "angle  eqs: " << 2 * n_faces << std::endl;
         #endif
     }
 
@@ -186,63 +177,22 @@ void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eig
         next_equation_id_ ++;
     }
 
-    if (enable_angle_eqs_){
-        Eigen::RowVectorXd DUV = D; // PERF: deduce DUV eq based on first two?
-        DUV(0) += 1.0;
-        DUV(1) += 1.0;
-        Eigen::Vector3d DUV_bary = barycentricCoords(DUV, V_2d.row(F(f_id, 0)), V_2d.row(F(f_id, 1)), V_2d.row(F(f_id, 2)));
-        Eigen::RowVectorXd DUVp = DUV_bary(0) * V_3d.row(F(f_id, 0)) + DUV_bary(1) * V_3d.row(F(f_id, 1)) + DUV_bary(2) * V_3d.row(F(f_id, 2));
-        double target_uv_u = (DUVp - Dp).dot(DUp - Dp)/(DUp - Dp).norm();
-        double target_uv_v = (DUVp - Dp).dot(DVp - Dp)/(DVp - Dp).norm();
-        // Shear: for shear we actually need two: check how much diagonal changes on U, and on V
-        // A_uv_u
-        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 0), DUV_bary(0) - D_bary(0)));
-        // B_uv_u
-        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 1), DUV_bary(1) - D_bary(1)));
-        // C_uv_u
-        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 2), DUV_bary(2) - D_bary(2)));
-        //target_vector.push_back(target_uv_u);
-        b(next_equation_id_) = target_uv_u;
-        //weight_vector.push_back(angle_coeff_);
-        W.diagonal()[next_equation_id_] = angle_coeff_;
-        next_equation_id_ ++;
-
-        // A_uv_v
-        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 0) + 1, DUV_bary(0) - D_bary(0)));
-        // B_uv_v
-        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 1) + 1, DUV_bary(1) - D_bary(1)));
-        // C_uv_v
-        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 2) + 1, DUV_bary(2) - D_bary(2)));
-        //target_vector.push_back(target_uv_v);
-        b(next_equation_id_) = target_uv_v;
-        //weight_vector.push_back(angle_coeff_);
-        W.diagonal()[next_equation_id_] = angle_coeff_;
-        next_equation_id_ ++;
-    }
-
     #ifdef LOCALGLOBAL_TIMING
     steady_clock::time_point pre_edges_eq = steady_clock::now();
     #endif
 
     if (enable_edges_eqs_){
-        //Eigen::MatrixXd V_tri_2d = makeTriPoints(V_2d, F, f_id);
-        //Eigen::MatrixXd V_tri_3d = makeTriPoints(V_3d, F, f_id);
         makeTriPoints(V_2d, F, f_id, V_tri_2d);
         makeTriPoints(V_3d, F, f_id, V_tri_3d);
 
-
-        V_tri_3d = move3Dto2D(V_tri_3d); // 1 ms
+        V_tri_3d = move3Dto2D(V_tri_3d); 
         Eigen::MatrixXd R_est;
         Eigen::VectorXd T_est;
-        procustes(V_tri_2d, V_tri_3d, R_est, T_est); // 4 ms 
+        procrustes(V_tri_2d, V_tri_3d, R_est, T_est); 
         
-    
-
-        //Eigen::MatrixXd p1 = V_tri_2d; // TODO get rid of extra notation
         Eigen::MatrixXd p2 = V_tri_3d;
-
         Eigen::MatrixXd p2_rt, p2_r;
-        Eigen::MatrixXd p2t = p2.transpose(); // TODO transposeInPlace ?
+        Eigen::MatrixXd p2t = p2.transpose();
         p2_rt = p2t.colwise() - T_est;
         p2_rt = (R_est.transpose() * p2_rt);
         p2_r = p2_rt.transpose();
@@ -256,18 +206,14 @@ void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eig
             double target_u = (Bp - Ap)(0);
             triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, edge.second), 1.0));
             triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, edge.first), -1.0));
-            //target_vector.push_back(target_u);
             b(next_equation_id_) = target_u;
-            //weight_vector.push_back(edges_coeff_);
             W.diagonal()[next_equation_id_] = edges_coeff_;
             next_equation_id_ ++;
 
             double target_v = (Bp - Ap)(1);
             triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, edge.second) + 1, 1.0));
             triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, edge.first) + 1, -1.0));
-            //target_vector.push_back(target_v);
             b(next_equation_id_) = target_v;
-            //    weight_vector.push_back(edges_coeff_);
             W.diagonal()[next_equation_id_] = edges_coeff_;
             next_equation_id_ ++;
         }
@@ -288,12 +234,9 @@ void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eig
         Eigen::RowVector3d v = Ep - Ap;
         double dist = v(0) * n(0) + v(1) * n(1) + v(2) * n(2);
         Eigen::RowVectorXd Ep_proj = Ep - dist * n;
-
         Eigen::Vector3d bary_E_proj = barycentricCoords(Ep_proj, Ap, Bp, Cp);
 
-
         double relevance_factor = 1.0 - std::fabs(n.dot(vertical_axis));
-        //std::cout << "relevance_factor: " << relevance_factor << std::endl;
         double weight = tri_align_coeff_ * relevance_factor;
 
         // Now the equation: we would like 
@@ -317,39 +260,8 @@ void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eig
 
 void BaryOptimizer::equationsFromDarts(const Eigen::MatrixXd& V_2d,
                                        const Eigen::MatrixXi& F){
-    /*for (auto dart: simple_darts_){
-        //if (dart.size() < 3) continue;
-        Eigen::RowVector3d sym_axis = dart.computeSymmetryAxis(V_2d);
-        Eigen::MatrixXd targets = dart.computeSymmetryTargets(V_2d, sym_axis);
-
-        if (dart.size() != targets.rows()){ 
-            std::cout << "Error in equationsFromDarts" << std::endl;
-        }
-
-        for (int i=0; i<dart.size(); i++){
-            int v_id = dart.v_id(i);
-
-            double target_u = targets(i, 0);
-            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * v_id, 1.0));
-            //target_vector.push_back(target_u);
-            b(next_equation_id_) = target_u;
-            //weight_vector.push_back(dart_sym_coeff_);
-            W.diagonal()[next_equation_id_] = dart_sym_coeff_;
-            next_equation_id_ ++;
-
-            double target_v = targets(i, 1);
-            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * v_id + 1, 1.0));
-            //target_vector.push_back(target_v);
-            b(next_equation_id_) = target_v;
-            //weight_vector.push_back(dart_sym_coeff_);
-            W.diagonal()[next_equation_id_] = dart_sym_coeff_;
-            next_equation_id_ ++;
-        }
-        
-    }*/
 
     for (auto dart: unordered_darts_){
-        //if (dart.size() < 3) continue;
         Eigen::RowVector2d sym_axis = dart.computeSymmetryAxis(V_2d.leftCols(2));
         std::vector<std::pair<Eigen::RowVector2d, Eigen::RowVector2d>> targets = dart.computeSymmetryTargets(V_2d.leftCols(2), sym_axis);
 
@@ -415,9 +327,7 @@ void BaryOptimizer::makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::M
     seed_sel_eqs_time = 0;
     #endif
 
-    triplet_list.clear(); // empty vector, but keeping memory size
-    //target_vector.clear(); // Perf: get rid of std::vector
-    //weight_vector.clear(); // Perf: get rid of std::vector
+    triplet_list.clear(); 
 
     for (int f_id=0; f_id<F.rows(); f_id++) {
         equationsFromTriangle(V_2d, V_3d, F, f_id);
@@ -494,7 +404,6 @@ void BaryOptimizer::makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::M
     std::cout << "n_equations_: " << n_equations_ << std::endl;
     std::cout << "next_equation_id_: " << next_equation_id_ << std::endl;
     std::cout << "triplet_list.size(): " << triplet_list.size() << std::endl; 
-    //std::cout << "target_vector.size(): " << target_vector.size() << std::endl; 
     #endif
 
     if (n_equations_ != next_equation_id_){
@@ -528,25 +437,15 @@ Eigen::MatrixXd BaryOptimizer::localGlobal(const Eigen::MatrixXd& V_2d, const Ei
 
     makeSparseMatrix(V_2d, V_3d, F);
 
-    if (other_bs.size() > 0){
+    if (other_bs.size() > 0){ // Multiple poses provided
+        #ifdef LOCALGLOBAL_DEBUG
         std::cout << "Found other bs" << std::endl;
+        #endif
         for (Eigen::VectorXd ob: other_bs){
             b += ob;
         }
         b /= (other_bs.size() + 1);
     }
-
-    DiagonalMatrixXd Wt = W;
-    if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
-        //Wt = Wt.transpose();
-    }
-
-    #ifdef LOCALGLOBAL_DEBUG_SMALL
-    if (USE_WEIGTHS_IN_LINEAR_SYSTEM){
-        std::cout << "W's diagonal coefficients: " << std::endl;
-        std::cout << W.diagonal() << std::endl;
-    }
-    #endif
 
     // solve Ax = b
     #ifdef LOCALGLOBAL_DEBUG
@@ -558,11 +457,6 @@ Eigen::MatrixXd BaryOptimizer::localGlobal(const Eigen::MatrixXd& V_2d, const Ei
     steady_clock::time_point pre_solver_init = steady_clock::now();
     #endif
 
-    /*Eigen::SparseMatrix<double> Ap = A;
-    Eigen::SparseMatrix<double> At = A;
-    At = At.transpose();
-    Ap = At * Wt * W * A;*/
-    //solver.compute(Ap);
     solver.compute(A.transpose() * W * W * A);
 
     if(solver.info() != Eigen::Success) {
@@ -570,18 +464,10 @@ Eigen::MatrixXd BaryOptimizer::localGlobal(const Eigen::MatrixXd& V_2d, const Ei
         //return;
     }
 
-    //x = vertices2dToVector(V_2d); // Initial solution
-    //x = Eigen::VectorXd::Zero(V_2d.rows() * 2);
-
-    //Eigen::VectorXd bp = b;
-    //bp = At * Wt * W * b;
-    
-
     #ifdef LOCALGLOBAL_TIMING
     steady_clock::time_point pre_solve = steady_clock::now();
     #endif
 
-    //x = solver.solve(bp);
     x = solver.solve(A.transpose() * W * W * b);
 
     if(solver.info() != Eigen::Success) {
@@ -616,12 +502,7 @@ Eigen::MatrixXd BaryOptimizer::localGlobal(const Eigen::MatrixXd& V_2d, const Ei
         res(i, 1) = x(2 * i + 1);
     }
 
-    //current_score_ = (A.transpose() * W * W * A * x - A.transpose() * W * W * b).norm();
-    //updateScore(V_2d, V_3d, F);
-    //measureScore(res, V_3d, F);
-
     #ifdef LOCALGLOBAL_TIMING
-    //std::cout << "# of non-zero elements in linear system: " << Ap.nonZeros() << std::endl;
     steady_clock::time_point post_localglobal = steady_clock::now();
     int pre_time = duration_cast<microseconds>(pre_solver_init - pre_localglobal).count();
     int init_solver_time = duration_cast<microseconds>(pre_solve - pre_solver_init).count();
@@ -649,7 +530,6 @@ void BaryOptimizer::measureScore(const Eigen::MatrixXd& V_2d, const Eigen::Matri
 
     double stretch_u_score = 0;
     double stretch_v_score = 0;
-    double edges_score = 0;
 
     stretch_u_vec.resize(F.rows());
     stretch_v_vec.resize(F.rows());
@@ -666,20 +546,13 @@ void BaryOptimizer::measureScore(const Eigen::MatrixXd& V_2d, const Eigen::Matri
         Eigen::RowVectorXd DV = D;
         DV(1) += 1.0;
         Eigen::Vector3d DV_bary = barycentricCoords(DV, V_2d.row(F(f_id, 0)), V_2d.row(F(f_id, 1)), V_2d.row(F(f_id, 2)));
-        /*Eigen::RowVectorXd DUV = D; // PERF: deduce DUV eq based on first two?
-        DUV(0) += 1.0;
-        DUV(1) += 1.0;
-        Eigen::Vector3d DUV_bary = barycentricCoords(DUV, V_2d.row(F(f_id, 0)), V_2d.row(F(f_id, 1)), V_2d.row(F(f_id, 2)));*/
 
         Eigen::RowVectorXd Dp = D_bary(0) * V_3d.row(F(f_id, 0)) + D_bary(1) * V_3d.row(F(f_id, 1)) + D_bary(2) * V_3d.row(F(f_id, 2));
         Eigen::RowVectorXd DUp = DU_bary(0) * V_3d.row(F(f_id, 0)) + DU_bary(1) * V_3d.row(F(f_id, 1)) + DU_bary(2) * V_3d.row(F(f_id, 2));
         Eigen::RowVectorXd DVp = DV_bary(0) * V_3d.row(F(f_id, 0)) + DV_bary(1) * V_3d.row(F(f_id, 1)) + DV_bary(2) * V_3d.row(F(f_id, 2));
-        //Eigen::RowVectorXd DUVp = DUV_bary(0) * V_3d.row(F(f_id, 0)) + DUV_bary(1) * V_3d.row(F(f_id, 1)) + DUV_bary(2) * V_3d.row(F(f_id, 2));
 
         double target_u = (DUp - Dp).norm();
         double target_v = (DVp - Dp).norm();
-        //double target_uv_u = (DUVp - Dp).dot(DUp - Dp)/(DUp - Dp).norm();
-        //double target_uv_v = (DUVp - Dp).dot(DVp - Dp)/(DVp - Dp).norm();;
 
         double actual_u = V_2d(F(f_id, 0), 0) * (DU_bary(0) - D_bary(0))
                         + V_2d(F(f_id, 1), 0) * (DU_bary(1) - D_bary(1))
@@ -688,7 +561,6 @@ void BaryOptimizer::measureScore(const Eigen::MatrixXd& V_2d, const Eigen::Matri
         stretch_u_score += std::pow(target_u - actual_u, 2);
 
         stretch_u_vec(f_id) = actual_u / target_u;
-        //stretch_u_score += actual_u / target_u;
 
         double actual_v = V_2d(F(f_id, 0), 1) * (DV_bary(0) - D_bary(0))
                         + V_2d(F(f_id, 1), 1) * (DV_bary(1) - D_bary(1))
@@ -696,63 +568,10 @@ void BaryOptimizer::measureScore(const Eigen::MatrixXd& V_2d, const Eigen::Matri
         
         stretch_v_score += std::pow(target_v - actual_v, 2);
         stretch_v_vec(f_id) = actual_v / target_v;
-        //stretch_v_score += actual_v / target_v;
-            
-
-        // --- BELOW : edges eqs ---
-        /*Eigen::MatrixXd V_tri_2d, V_tri_3d;
-        makeTriPoints(V_2d, F, f_id, V_tri_2d);
-        makeTriPoints(V_3d, F, f_id, V_tri_3d);
-        V_tri_3d = move3Dto2D(V_tri_3d);
-        Eigen::MatrixXd R_est;
-        Eigen::VectorXd T_est;
-        procustes(V_tri_2d, V_tri_3d, R_est, T_est);
-        Eigen::MatrixXd p2 = V_tri_3d;
-
-        Eigen::MatrixXd p2_rt, p2_r;
-        Eigen::MatrixXd p2t = p2.transpose(); // TODO transposeInPlace ?
-        p2_rt = p2t.colwise() - T_est;
-        p2_rt = (R_est.transpose() * p2_rt);
-        p2_r = p2_rt.transpose();
-
-        std::vector<std::pair<int, int>> edges = {std::make_pair(0,1), std::make_pair(0,2), std::make_pair(1,2)}; 
-
-        for (std::pair<int, int> edge : edges){
-            Eigen::RowVectorXd Ap = p2_r.row(edge.first);
-            Eigen::RowVectorXd Bp = p2_r.row(edge.second);
-
-            double actual_u = V_2d(F(f_id, edge.second), 0) - V_2d(F(f_id, edge.first), 0);
-            double target_u = (Bp - Ap)(0);
-            edges_score += std::pow(target_u - actual_u, 2);
-
-            double actual_v = V_2d(F(f_id, edge.second), 1) - V_2d(F(f_id, edge.first), 1);
-            double target_v = (Bp - Ap)(1);
-            edges_score += std::pow(target_v - actual_v, 2);
-        }*/
     }
 
     stretch_u_score /= F.rows();
     stretch_v_score /= F.rows();
-    edges_score /= F.rows();
-
-    /*double selected_score = -1;
-    if (selected_vs_.size() >= 2 && selected_vs_[0] >= 0 && selected_vs_[1] >= 0){
-        // selected vertices should have = V
-        int v0 = selected_vs_[0];
-        int v1 = selected_vs_[1];
-        selected_score = std::pow(V_2d(v0, 1) - V_2d(v1, 1), 2); 
-    }
-    else { // not enough vertices selected
-    }*/
-
-    // No dart score for now
-    // equationsFromDarts(V_2d, F); // TODO ?
-
-    /*std::cout << "Stretch U:\t" << stretch_u_score << std::endl;
-    std::cout << "Stretch V:\t" << stretch_v_score << std::endl;
-    std::cout << "Edges sc.:\t" << edges_score << std::endl;
-    std::cout << "Selec sc.:\t" << selected_score << std::endl;*/
-
 
     // From centered around 1 to centered around 0:
     stretch_u_vec = stretch_u_vec.array() - 1.0;

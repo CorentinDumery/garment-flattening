@@ -1,4 +1,10 @@
-
+/**
+ * @author Corentin Dumery
+ * @brief Measures alignment between parameterization and desired alignment axis. Also 
+ * see scripts/angle_deviation_viz.ipynb for visualization.
+ * @date 2022-02-04
+ * 
+ */
 
 #include <igl/readOBJ.h>
 #include <igl/doublearea.h>
@@ -7,8 +13,13 @@
 
 int main(int argc, char *argv[]){
 
-    std::string path_2d = "/media/corentin/A294-702A/fig2/redoFIG2/mark_skirt_uncut.objpatch_UV_0.obj";
-    std::string path_3d = "/media/corentin/A294-702A/fig2/redoFIG2/mark_skirt_uncut.objpatch_3D_0.obj";
+    std::string path_2d = "../data/skirt/skirt_UV_0.obj";
+    std::string path_3d = "../data/skirt/skirt_3D_0.obj";
+
+    if (argc >= 3){
+        path_2d = argv[1];
+        path_3d = argv[2];
+    }
 
     Eigen::MatrixXd V_2db, V_2d, V_3d;
     Eigen::MatrixXi F;
@@ -23,11 +34,6 @@ int main(int argc, char *argv[]){
     measureAlignmentScore(V_2d, V_3d, F, align_error);
 
     align_error = align_error.array();
-
-    /*for (int i=0; i<align_error.rows(); i++){
-        std::cout << align_error(i) << ", ";
-    }
-    std::cout << std::endl;*/
 
     Eigen::VectorXd A;
     igl::doublearea(V_3d, F, A);
