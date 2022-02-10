@@ -10,7 +10,7 @@
 
 #include "param/param_utils.h"
 //#define LOCALGLOBAL_DEBUG
-#define LOCALGLOBAL_TIMING
+//#define LOCALGLOBAL_TIMING
 //#define LOCALGLOBAL_DEBUG_SMALL // print full matrices, should be small
 
 #ifdef LOCALGLOBAL_TIMING

@@ -32,17 +32,14 @@ target_link_libraries(triangle_energies woven_param igl::opengl_glfw igl::core i
 add_executable(mccartney_energies app/mccartney_energies.cpp src/param/param_utils.cpp src/param/bary_optimizer.cpp src/param/auto_select.cpp)
 target_link_libraries(mccartney_energies igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png OpenMP::OpenMP_CXX igl::triangle)
 
-add_executable(energy_check app/energy_check.cpp src/param/param_utils.cpp)
-target_link_libraries(energy_check igl::core)
-
 add_executable(measure_alignment appnew/measure_alignment.cpp)
 target_link_libraries(measure_alignment woven_param)
 
 add_executable(multi_param app/multi_param.cpp ${PARAMSRC} src/param/metrics.cpp)
 target_link_libraries(multi_param igl::core igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::triangle nlohmann_json)
 
-add_executable(multiple_poses app/multiple_poses.cpp ${PARAMSRC})
-target_link_libraries(multiple_poses igl::core igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::triangle nlohmann_json)
+add_executable(multiple_poses appnew/multiple_poses.cpp ${PARAMSRC})
+target_link_libraries(multiple_poses igl::core igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png nlohmann_json)
 
 add_executable(woven_viz appnew/woven_viz.cpp)
 target_link_libraries(woven_viz woven_param igl::core igl::opengl_glfw igl::png igl::core igl::opengl_glfw_imgui nlohmann_json)

@@ -33,6 +33,11 @@ ClothParam::ClothParam(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
     }
     else if (init_type_ == CLOTH_INIT_LSCM){
         V_2d_ = paramLSCM(V_3d_, F_, bnd_);
+        // if LSCM flips the mesh, unflip it
+        Eigen::Vector3d v1 = (V_2d_.row(F_(0, 1)) - V_2d_.row(F_(0, 0))).transpose();
+        Eigen::Vector3d v2 = (V_2d_.row(F_(0, 2)) - V_2d_.row(F_(0, 0))).transpose();
+        Eigen::Vector3d n0 = v1.cross(v2);
+        if (n0(2) < 0) V_2d_.col(1) *= - 1.0;
     }
     else if (init_type_ == CLOTH_INIT_SCAF){
         V_2d_ = paramSCAF(V_3d_, F_, bnd_);
