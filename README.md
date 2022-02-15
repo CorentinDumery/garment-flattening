@@ -60,3 +60,7 @@ Thank you for reading! If this repository is useful to you, feel free to reach o
 TODO
 
 ![teaser](images/animals.png) 
+
+## Acknowledgments
+
+Some of the models used in this repository are adapted from the dataset associated with https://github.com/maria-korosteleva/Garment-Pattern-Generator

@@ -13,7 +13,6 @@ add_subdirectory(lib/implot)
 add_subdirectory(lib/json)
 include_directories(include)
 
-file(GLOB SRCFILES src/*.cpp)
 file(GLOB PARAMSRC src/param/*.cpp)
 
 add_library(${PROJECT_NAME} ${PARAMSRC})
@@ -35,8 +34,8 @@ target_link_libraries(mccartney_energies igl::opengl_glfw igl::core igl::opengl_
 add_executable(measure_alignment appnew/measure_alignment.cpp)
 target_link_libraries(measure_alignment woven_param)
 
-add_executable(multi_param app/multi_param.cpp ${PARAMSRC} src/param/metrics.cpp)
-target_link_libraries(multi_param igl::core igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::triangle nlohmann_json)
+add_executable(reflec_param appnew/reflec_param.cpp ${PARAMSRC})
+target_link_libraries(reflec_param igl::core igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::triangle nlohmann_json)
 
 add_executable(multiple_poses appnew/multiple_poses.cpp ${PARAMSRC})
 target_link_libraries(multiple_poses igl::core igl::opengl_glfw igl::core igl::opengl_glfw_imgui igl::png nlohmann_json)

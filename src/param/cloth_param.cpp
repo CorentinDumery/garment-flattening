@@ -83,11 +83,11 @@ bool ClothParam::paramAttempt(int max_iter){
         bo_.measureScore(V_2d_, V_3d_, F_, stretch_u_, stretch_v_);
 
         #ifdef DEBUG_CLOTH_PARAM
-        if (stretch_u_.maxCoeff() < -0.5){ // not really supposed to happen if the initialization is ok
+        if (stretch_u_.maxCoeff() < -0.5){ // not supposed to happen if the initialization is ok
             igl::writeOBJ("../data/buggy/not_good.obj", V_3d_, F_);
             igl::writeOBJ("../data/buggy/not_good_uv.obj", V_2d_, F_);
         }
-        if (std::isnan(stretch_u_.maxCoeff())){ // not really supposed to happen if the initialization is ok
+        if (std::isnan(stretch_u_.maxCoeff())){ // not supposed to happen if the initialization is ok
             igl::writeOBJ("./nanned.obj", V_3d_, F_);
             igl::writeOBJ("./nanned_uv.obj", V_2d_, F_);
         }

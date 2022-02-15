@@ -65,6 +65,31 @@ bool finalParamMultiPatch(const std::vector<Eigen::MatrixXd>& vec_V_3d,
     std::ifstream input_config(config_path);
     input_config >> config;
     #endif
+
+    #ifdef SAVE_FINAL_PARAM_INPUTS
+    for (int i=0; i<vec_V_3d.size(); i++){
+        igl::writeOBJ("../skirt_"+std::to_string(i)+".obj", vec_V_3d[i], vec_F[i]);
+        std::vector<std::vector<std::pair<int, int>>> dart_duplicates = vec_dart_duplicates[i];
+        std::cout << "Patch " << i << std::endl;
+        for (int j=0; j<dart_duplicates.size(); j++){
+            std::cout << "Patch " << i << " dart " << j << ", tip vertex " << vec_dart_tips[i][j] << std::endl;
+            std::vector<std::pair<int, int>> duplicates = dart_duplicates[j];
+            for (int k=0; k<duplicates.size(); k++){
+                std::cout << duplicates[k].first << " " << duplicates[k].second << std::endl;
+            }
+        }
+    }
+
+    int seam_id = 0;
+    for (Seam s: seams){
+        std::vector<std::pair<int, int>> corres = s.corres;
+        std::cout << "Seam " << seam_id << ", " << s.patch1_id << " & " << s.patch2_id << std::endl;
+        for (int k=0; k<corres.size(); k++){
+            std::cout << corres[k].first << " " << corres[k].second << std::endl;
+        }
+        seam_id++;
+    }
+    #endif
     
     int n_patches = vec_V_3d.size();
     if (n_patches != vec_F.size()){

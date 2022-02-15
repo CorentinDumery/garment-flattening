@@ -83,6 +83,13 @@ public:
 
     void loadConfig(std::string config_path);
 
+    Eigen::VectorXi getBnd(){return bnd_;}
+
+    void setCoeffs(float stretch_f, float edges_f){
+        bo_.stretch_coeff_ = stretch_f;
+        bo_.edges_coeff_ = edges_f;
+    }
+
     // -- Multiple poses -- //
     // We share b vectors across several instances to handle multiple poses
     Eigen::VectorXd getB() {return bo_.getB();};

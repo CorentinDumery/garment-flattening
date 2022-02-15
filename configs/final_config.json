@@ -7,7 +7,7 @@
 	"dart_sym_coeff": 100.0,
 	"seam_coeff": 10.0,
 	"debug": {
-		"save_init_params": true,
+		"save_init_params": false,
 		"save_init_paths": "../data/buggy/"
 	}
 }
