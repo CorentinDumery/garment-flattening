@@ -1,12 +1,29 @@
+
 # GG WP: General Garment Woven Parameterization
 
-*"If your pair of jeans isn't even isotropic, why should its paramerization be?"*
+<table>
+    <tr align="middle" >
+          <td width="70%" align="left">
+          <i>"If your pair of jeans isn't even isotropic, why should its paramerization be?"</i> </br></br>
 
 This repository provides an implementation of the anisotropic parameterization described in TODO by TODO.
 It's original intent is to accurately flatten woven textiles, for which the thread structure induces
-anisotropy in their ability to stretch.
+anisotropy in their ability to stretch.</td>
+          <td width="30%"><img style="float: right;" src="images/woven_viz.gif" margin="35px"></td>
+    </tr>
+</table>
 
-![teaser](images/teaser.png) 
+## Testing
+
+```
+git clone https://github.com/corentinDumery/TODO
+git submodule update --init --recursive
+mkdir build && cd build
+cmake ..
+make -j woven_param       #build library
+make -j woven_viz         #build test app
+./woven_viz [path/to/input/mesh.obj]
+```
 
 ## Features
 
@@ -24,23 +41,7 @@ anisotropy in their ability to stretch.
 
 * Multiple poses: given multiple target 3D meshes representing different poses, we produce a 2D pattern that best fits all targets. 
 
-## Compiling
-
-```
-mkdir build && cd build
-cmake ..
-make -j woven_param
-```
-
 ## Adding to your project
-
-### TLDR
-
-The CMakeLists at the root of this repo builds a library called `woven_param`, and the `include/param` directory contains the library's interface. Dont forget to init submodules (libigl, json).
-
-### More detail
-
-Can easily be added to CMake-based projects using
 
 ```
 git add submodule https://github.com/corentinDumery/TODO
@@ -50,7 +51,9 @@ git submodule update --init --recursive
 Then, in your `CMakeLists.txt`, add: 
 ```
 add_subdirectory([path_to_woven_param]/woven-param)
+...
 target_include_directories([target] PUBLIC [path_to_woven_param]/include)
+target_link_libraries([target] woven_param)
 ```
 
 ## Citing
