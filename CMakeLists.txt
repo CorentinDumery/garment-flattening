@@ -5,12 +5,16 @@ project(woven_param)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 add_definitions(-DIGL_VIEWER_VIEWER_QUIET)
-
 find_package(OpenMP REQUIRED)
 
-add_subdirectory(lib/libigl)
+if (NOT TARGET igl::core)
+  add_subdirectory(lib/libigl)
+endif() 
+if (NOT TARGET nlohmann_json)
+  add_subdirectory(lib/json)
+endif() 
+
 add_subdirectory(lib/implot)
-add_subdirectory(lib/json)
 include_directories(include)
 
 file(GLOB PARAMSRC src/param/*.cpp)
