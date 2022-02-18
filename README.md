@@ -4,7 +4,9 @@
 <table>
     <tr align="middle" >
           <td width="70%" align="left">
-          <i>"If your pair of jeans isn't even isotropic, why should its paramerization be?"</i> </br></br>
+          <i>"If your pair of jeans isn't even isotropic, why should its parameterization be?"</i> </br></br>
+
+Previous UV mapping methods (ABF++, LSCM, ARAP, BFF, SCAF, AutoCuts, OptCuts, ...) are rotation invariant and minimize triangle distortion without any assumption on the material being flattened. These methods are unfit for anisotropic materials which stretch differently along different axes.  
 
 This repository provides an implementation of the anisotropic parameterization described in TODO by TODO.
 It's original intent is to accurately flatten woven textiles, for which the thread structure induces
