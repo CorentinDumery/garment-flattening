@@ -6,7 +6,7 @@
           <td width="70%" align="left">
           <i>"If your pair of jeans isn't even isotropic, why should its parameterization be?"</i> </br></br>
 
-Previous UV mapping methods (ABF++, LSCM, ARAP, BFF, SCAF, AutoCuts, OptCuts, ...) are rotation invariant and minimize triangle distortion without any assumption on the material being flattened. These methods are unfit for anisotropic materials which stretch differently along different axes.  
+Previous UV mapping methods (ABF++, LSCM, ARAP, BFF, SCAF, AutoCuts, OptCuts, ...) are rotation invariant and minimize triangle distortion without any assumption on the material being flattened. These methods are unfit for anisotropic materials which stretch unequally along different axes.  
 
 This repository provides an implementation of the anisotropic parameterization described in TODO by TODO.
 It's original intent is to accurately flatten woven textiles, for which the thread structure induces
@@ -54,7 +54,6 @@ Then, in your `CMakeLists.txt`, add:
 ```
 add_subdirectory([path_to_woven_param]/woven-param)
 ...
-target_include_directories([target] PUBLIC [path_to_woven_param]/include)
 target_link_libraries([target] woven_param)
 ```
 
@@ -64,8 +63,9 @@ Thank you for reading! If this repository is useful to you, feel free to reach o
 
 TODO
 
-![teaser](images/animals.png) 
+![animals_figure](images/animals.png) 
 
 ## Acknowledgments
 
-Some of the models used in this repository are adapted from the dataset associated with https://github.com/maria-korosteleva/Garment-Pattern-Generator
+Some of the models used in this repository are adapted from 
+[Generating Datasets of 3D Garments with Sewing Patterns](https://zenodo.org/record/5267549#.YhepENso_mF) by Maria Korosteleva and Sung-Hee Lee.
