@@ -59,7 +59,7 @@ void BaryOptimizer::allocateMemory(int n_faces, int n_vs){
         #endif
     }
 
-    if (enable_selected_eqs_){ //canUseSelectedEquation()){
+    if (enable_selected_eqs_){
         n_equations_ += 1;
         n_triplets_ += 2;
 
@@ -70,9 +70,6 @@ void BaryOptimizer::allocateMemory(int n_faces, int n_vs){
 
     if (enable_dart_sym_eqs_){
         int dart_points = 0; // points with dart target position, i.e. all on dart except tip
-        /*for (int i=0; i<simple_darts_.size(); i++){
-            dart_points += simple_darts_[i].size(); // -1;
-        }*/
 
         for (int i=0; i<unordered_darts_.size(); i++){
             dart_points += unordered_darts_[i].pairs_.size() * 2 ; // for pairs
@@ -104,8 +101,6 @@ void BaryOptimizer::allocateMemory(int n_faces, int n_vs){
     }
 
     triplet_list.resize(n_triplets_);
-    //target_vector.resize(n_equations_);
-    //weight_vector.resize(n_equations_);
     A.resize(n_equations_, 2 * n_vs);
     b.resize(n_equations_);
     W.resize(n_equations_);
@@ -116,16 +111,12 @@ void BaryOptimizer::allocateMemory(int n_faces, int n_vs){
 
 void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
                            const Eigen::MatrixXi& F, int f_id){
-    
     // each triangle gives us 2 equations:
     // one target u and one target v
 
     #ifdef LOCALGLOBAL_TIMING
     steady_clock::time_point pre_stretch_shear_eqs = steady_clock::now();
     #endif
-
-    //Eigen::MatrixXd V_tri_2d = makeTriPoints(V_2d, F, f_id); // Could be removed for perf
-    //Eigen::MatrixXd V_3d.row(F(f_id, ke)TriPoints(V_3d, F, f_id);
 
     Eigen::RowVectorXd D = (V_2d.row(F(f_id, 0)) + V_2d.row(F(f_id, 1)) + V_2d.row(F(f_id, 2)))/3.0; // centroid
     Eigen::Vector3d D_bary(0.333333, 0.333333, 0.333333);
@@ -170,9 +161,7 @@ void BaryOptimizer::equationsFromTriangle(const Eigen::MatrixXd& V_2d, const Eig
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 1) + 1, DV_bary(1) - D_bary(1)));
         // Cv
         triplet_list.push_back(Eigen::Triplet<double>(next_equation_id_, 2 * F(f_id, 2) + 1, DV_bary(2) - D_bary(2)));
-        //target_vector.push_back(target_v);
         b(next_equation_id_) = target_v;
-        //weight_vector.push_back(stretch_coeff_);
         W.diagonal()[next_equation_id_] = stretch_coeff_;
         next_equation_id_ ++;
     }
@@ -262,8 +251,7 @@ void BaryOptimizer::equationsFromDarts(const Eigen::MatrixXd& V_2d,
                                        const Eigen::MatrixXi& F){
 
     for (auto dart: unordered_darts_){
-        Eigen::RowVector2d sym_axis = dart.computeSymmetryAxis(V_2d.leftCols(2));
-        std::vector<std::pair<Eigen::RowVector2d, Eigen::RowVector2d>> targets = dart.computeSymmetryTargets(V_2d.leftCols(2), sym_axis);
+        std::vector<std::pair<Eigen::RowVector2d, Eigen::RowVector2d>> targets = dart.computeSymmetryTargets(V_2d.leftCols(2));
 
         if (dart.pairs_.size() != targets.size()){ 
             std::cout << "Error in equationsFromDarts" << std::endl;
@@ -577,34 +565,6 @@ void BaryOptimizer::measureScore(const Eigen::MatrixXd& V_2d, const Eigen::Matri
     stretch_u_vec = stretch_u_vec.array() - 1.0;
     stretch_v_vec = stretch_v_vec.array() - 1.0;
 }
-
-void BaryOptimizer::setDarts(std::vector<SimpleDart> simple_darts) {
-
-    std::vector<std::vector<std::pair<int, int>>> dart_duplicates;
-    std::vector<int> dart_tips;
-    for (SimpleDart d: simple_darts){
-        dart_tips.push_back(d.tip_id());
-        std::vector<std::pair<int, int>> dart_pairs = {};
-        for (int i=0; i<d.tip(); i++){
-            dart_pairs.push_back({d.v_id(i), d.v_id(d.symmetric(i))});
-        }
-        dart_duplicates.push_back(dart_pairs);
-    }
-
-    setUnorderedDarts(dart_duplicates, dart_tips);
-};
-
-void BaryOptimizer::setDarts(std::vector<std::vector<int>> ordered_cuts) {
-    std::vector<SimpleDart> simple_darts;
-    for (int i=0; i<ordered_cuts.size(); i++){
-        std::vector<int> cut = ordered_cuts[i]; 
-        if (cut.size() % 2 == 0) continue;
-        SimpleDart sd(cut);
-        simple_darts.push_back(sd);
-    }
-
-    setDarts(simple_darts);
-};
 
 void BaryOptimizer::setUnorderedDarts(const std::vector<std::vector<std::pair<int, int>>>& dart_duplicates,
                                  const std::vector<int>& dart_tips){

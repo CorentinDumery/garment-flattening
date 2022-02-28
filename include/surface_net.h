@@ -1,4 +1,11 @@
 #pragma once
+/**
+ * @file surface_net.h
+ * @author Corentin Dumery
+ * @brief Utilities to compute a net on a 2D mesh, and find closest net
+ * threads to input point.
+ * @date 2022-02-28
+ */
 #include <Eigen/Core>
 #include <vector>
 

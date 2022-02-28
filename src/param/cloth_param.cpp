@@ -72,13 +72,6 @@ void ClothParam::paramIter(int n_iter){
 }
 
 bool ClothParam::paramAttempt(int max_iter){
-    if (!topology_ok) {
-        std::cout << "Topology check failed, aborting parameterization" << std::endl;
-        V_2d_ = Eigen::MatrixXd::Zero(V_3d_.rows(), 3);
-        stretch_u_ = Eigen::VectorXd::Constant(F_.rows(), 100.0);
-        stretch_v_ = Eigen::VectorXd::Constant(F_.rows(), 100.0);
-        return false;
-    }
     for (int current_iter = 0; current_iter < max_iter; current_iter++){
         bo_.measureScore(V_2d_, V_3d_, F_, stretch_u_, stretch_v_);
 

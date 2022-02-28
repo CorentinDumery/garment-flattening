@@ -1,10 +1,20 @@
-
+#pragma once
+/**
+ * @author Corentin Dumery
+ * @brief Mesh parameterization incorportating multiple poses
+ * in its constraints
+ * @date 2022-02-28
+ * 
+ */
 #include <vector>
 #include <Eigen/Core>
 
 #include "cloth_param.h"
 
-// Flattens a patch, given multiple poses (several V_3d, but same F) 
+/**
+ * @brief Flattens a patch, given multiple poses (several V_3d, but same F) 
+ * 
+ */
 Eigen::MatrixXd multiplePosesParam(const std::vector<Eigen::MatrixXd>& vec_V_3d, 
                                    const Eigen::MatrixXi& F,
                                    double stretch,

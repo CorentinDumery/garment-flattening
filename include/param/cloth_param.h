@@ -13,7 +13,6 @@
 
 #include "param/bary_optimizer.h"
 #include "param/param_utils.h"
-#include "param/auto_select.h"
 
 enum CLOTH_INIT_TYPE {CLOTH_INIT_ARAP, CLOTH_INIT_LSCM, CLOTH_INIT_SCAF};
 
@@ -76,8 +75,6 @@ public:
             && stretch_v_.maxCoeff() < max_stretch_;
     };
 
-    bool topology_ok = true;
-
     void disableIntersectionCheck(){enable_intersection_check_ = false;};
     void enableIntersectionCheck(){enable_intersection_check_ = true;};
 
@@ -128,7 +125,7 @@ private:
     // first indexing: dart id
     // second indexing: pair id in dart    
     // pair: two vertex ids, which should be symmetrical w.r.t. dart
-    // note: needs to be called before memory allocation!
+    // NOTE: needs to be called before memory allocation!
     void setDartPairs(const std::vector<std::vector<std::pair<int, int>>>& dart_duplicates,
                       const std::vector<int>& dart_tips);
 };

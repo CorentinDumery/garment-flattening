@@ -1,4 +1,10 @@
 #pragma once
+/**
+ * @file draw_colormap.h
+ * @author Corentin Dumery
+ * @brief Draws colormap visualization in an ImGui menu
+ * @date 2022-02-28
+ */
 
 #include <igl/colormap.h>
 #include <imgui.h>

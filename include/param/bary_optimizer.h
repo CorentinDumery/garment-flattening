@@ -2,7 +2,7 @@
  * @author Corentin Dumery
  * @brief Receives a mesh as input and computes its parameterization.
  * This class is meant to define and solve a weighted sparse linear system
- * from the input mesh, but does *not* store the mesh.
+ * from the input mesh, but does *not* store the mesh (see cloth_param.h for that).
  * Memory pre-allocated upon initialization for performance.
  * @date 2022-02-04
  * 
@@ -89,8 +89,6 @@ public:
     void setSelectedVertices(std::vector<int> selected_vs) {selected_vs_ = selected_vs;};
     std::vector<int> getSelectedVertices() const {return selected_vs_;}
 
-    void setDarts(std::vector<SimpleDart> simple_darts);
-    void setDarts(std::vector<std::vector<int>> ordered_cuts);
     void setUnorderedDarts(const std::vector<std::vector<std::pair<int, int>>>& dart_duplicates,
                            const std::vector<int>& dart_tips);
 

@@ -1,4 +1,10 @@
-
+#pragma once 
+/**
+ * @file mccartney.h
+ * @author Corentin Dumery
+ * @brief Measurements of McCartney's energies for anisotropic materials
+ * @date 2022-02-28
+ */
 #include <Eigen/Core>
 #include <igl/barycentric_coordinates.h>
 #include "param/param_utils.h"

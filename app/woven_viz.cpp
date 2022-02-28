@@ -19,36 +19,10 @@
 #include <igl/jet.h>
 
 #include "metrics.h"
-#include <param/auto_select.h>
 #include <param/bary_optimizer.h>
 #include <param/self_intersect.h>
 #include "param/cloth_param.h"
 #include "draw_colormap.h"
-
-
-void printMatStats(std::string name, const Eigen::VectorXd& mat){
-    std::cout << name << ": " <<  mat.minCoeff() << " -> " << mat.maxCoeff() << " (avg " << mat.mean() << ")"  << std::endl;
-}
-
-Eigen::MatrixXd fromVectorToColors(const Eigen::VectorXd& vector){
-    Eigen::VectorXd adjusted = vector;
-    adjusted = adjusted.array() - adjusted.minCoeff();
-    double mean = adjusted.mean();
-    //adjusted = adjusted.array() / (2 * mean); // center mean at 0.5
-    
-    adjusted = adjusted.array() * 100.0;
-    //printMatStats("vector", vector);
-
-    adjusted = adjusted.cwiseMin(1.0);
-    adjusted = adjusted.cwiseMax(0.0);
-    //printMatStats("adjusted", adjusted);
-
-    Eigen::MatrixXd colors = Eigen::MatrixXd::Constant(vector.rows(), 3, 1);
-    colors.col(1) = 1.0 - adjusted.array();
-    colors.col(2) = 1.0 - adjusted.array();
-
-    return colors;
-}
 
 int main(int argc, char *argv[]){
     Eigen::MatrixXd V_3d, V_2d, V_2di;

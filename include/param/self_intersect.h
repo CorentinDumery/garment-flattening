@@ -1,12 +1,14 @@
 #pragma once
-
+/**
+ * @file self_intersect.h
+ * @author Corentin Dumery
+ * @brief Detect mesh self intersections 
+ * @date 2022-02-28
+ * 
+ */
 #include <Eigen/Geometry>
 
-bool segmentIntersect(const Eigen::RowVector2d& A,
-                      const Eigen::RowVector2d& B,
-                      const Eigen::RowVector2d& C,
-                      const Eigen::RowVector2d& D);
-
-bool selfIntersect2D(const Eigen::MatrixXd& V_2d, const Eigen::VectorXi& bnd);
-
+/**
+ * @brief Checks for self intersection on the border edges of a 2D mesh 
+ */
 bool selfIntersect(const Eigen::MatrixXd& V_2d, const Eigen::VectorXi& bnd);

@@ -1,4 +1,10 @@
 #pragma once
+/**
+ * @file metrics.h
+ * @author Corentin Dumery
+ * @brief Static functions measuring quality of a parameterization. 
+ * @date 2022-02-28
+ */
 #include <Eigen/Core>
 
 #include "param/multi_patch_param.h"
