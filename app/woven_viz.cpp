@@ -23,6 +23,7 @@
 #include <param/self_intersect.h>
 #include "param/cloth_param.h"
 #include "draw_colormap.h"
+#include "export_pattern.h"
 
 int main(int argc, char *argv[]){
     Eigen::MatrixXd V_3d, V_2d, V_2di;
@@ -54,6 +55,10 @@ int main(int argc, char *argv[]){
 
     // --- VISUALIZATION ---
     igl::opengl::glfw::Viewer viewer;
+    viewer.append_mesh();
+    int orig_id = viewer.data_list[0].id;
+    int hud_id = viewer.data_list[1].id;
+
     int n_iterations = 5;
     int display_mode = 1;
     float stretch_f = 5.0;
@@ -63,27 +68,28 @@ int main(int argc, char *argv[]){
     double time_increment = 0.02;
     bool morphing = true;
     bool is_displaying_v2d = false;
+    float allowance = 0.2;
     
-    viewer.data().set_mesh(V_3d, F);
+    viewer.data(orig_id).set_mesh(V_3d, F);
 
-    viewer.data().set_uv(V_2d * scale_uv);
-    viewer.data().show_texture = true;
-    viewer.data().set_texture(R,G,B);
+    viewer.data(orig_id).set_uv(V_2d * scale_uv);
+    viewer.data(orig_id).show_texture = true;
+    viewer.data(orig_id).set_texture(R,G,B);
 
     igl::opengl::glfw::imgui::ImGuiMenu menu;
     menu.callback_draw_viewer_window = []() {};
     viewer.plugins.push_back(&menu);
 
     auto updateViz = [&](){
-        viewer.data().clear_edges();
-        viewer.data().clear_points();
+        viewer.data(orig_id).clear_edges();
+        viewer.data(orig_id).clear_points();
 
         if (display_mode == 2){
             Eigen::VectorXd stretch_u_vec, stretch_v_vec;
             Eigen::MatrixXd stretch_u_colors, stretch_v_colors;
             measureStretchScore(V_2d, V_3d, F, stretch_u_vec, stretch_v_vec);
             igl::jet(stretch_u_vec, -0.5, 0.5, stretch_u_colors);
-            viewer.data().set_colors(stretch_u_colors);
+            viewer.data(orig_id).set_colors(stretch_u_colors);
         }
 
         if (display_mode == 3){
@@ -91,8 +97,14 @@ int main(int argc, char *argv[]){
             Eigen::MatrixXd align_colors;
             measureAlignmentScore(V_2d, V_3d, F, align_error);
             igl::jet(align_error, -0.5, 0.5, align_colors);
-            viewer.data().set_colors(align_colors);
+            viewer.data(orig_id).set_colors(align_colors);
         }
+
+
+        viewer.data(hud_id).clear_edges();
+        Eigen::MatrixXd edge_begs, edge_ends; 
+        createPattern(V_2d, cp.getBnd(), allowance, edge_begs, edge_ends);
+        viewer.data(hud_id).add_edges(edge_begs, edge_ends, Eigen::RowVector3d(0, 0, 0));
     };
 
     //helper function for menu
@@ -117,7 +129,7 @@ int main(int argc, char *argv[]){
             ImGui::SameLine(0, p);
             if (ImGui::Button("3D",  ImVec2((w - p) / 3.f, 0))){
                 morphing = false;
-                viewer.data().set_mesh(V_3d, F);
+                viewer.data(orig_id).set_mesh(V_3d, F);
                 viewer.core().align_camera_center(V_3d,F);
                 viewer.core().lighting_factor = 1.0;
                 is_displaying_v2d = false;
@@ -126,14 +138,14 @@ int main(int argc, char *argv[]){
             ImGui::SameLine(0, p);
             if (ImGui::Button("2D",  ImVec2((w - p) / 3.f, 0))){
                 morphing = false;
-                viewer.data().set_mesh(V_2d, F);
+                viewer.data(orig_id).set_mesh(V_2d, F);
                 viewer.core().align_camera_center(V_2d,F);
                 viewer.core().lighting_factor = 0.0;
                 is_displaying_v2d = true;
             }
 
-            /*make_checkbox("Show mesh", viewer.data().show_lines);
-            make_checkbox("Show texture", viewer.data().show_texture);*/
+            /*make_checkbox("Show mesh", viewer.data(orig_id).show_lines);
+            make_checkbox("Show texture", viewer.data(orig_id).show_texture);*/
 
             const char* dir_items[4];
             dir_items[0] = "Mesh";
@@ -142,9 +154,9 @@ int main(int argc, char *argv[]){
             dir_items[3] = "Alignment";
             
             if (ImGui::ListBox("Display", &display_mode, dir_items, IM_ARRAYSIZE(dir_items), 4)){
-                viewer.data().show_lines = display_mode == 0;
-                viewer.data().show_texture = display_mode == 1;
-                if (display_mode < 2) viewer.data().set_colors(Eigen::RowVector3d(1.0, 1.0, 1.0));
+                viewer.data(orig_id).show_lines = display_mode == 0;
+                viewer.data(orig_id).show_texture = display_mode == 1;
+                if (display_mode < 2) viewer.data(orig_id).set_colors(Eigen::RowVector3d(1.0, 1.0, 1.0));
                 updateViz();
             }
 
@@ -164,7 +176,7 @@ int main(int argc, char *argv[]){
             
             if (ImGui::SliderFloat("Scale fibers", &scale_uv, 0.1f, 3.0f, "%.3f")){
                 display_mode = 1;
-                viewer.data().set_uv(V_2d * scale_uv);
+                viewer.data(orig_id).set_uv(V_2d * scale_uv);
             }
 
             ImGui::Separator();
@@ -173,8 +185,8 @@ int main(int argc, char *argv[]){
                 cp.setV2d(V_2di);
                 cp.paramAttempt(n_iterations);
                 V_2d = cp.getV2d();
-                if (is_displaying_v2d) viewer.data().set_mesh(V_2d, F);
-                viewer.data().set_uv(V_2d * scale_uv);
+                if (is_displaying_v2d) viewer.data(orig_id).set_mesh(V_2d, F);
+                viewer.data(orig_id).set_uv(V_2d * scale_uv);
                 updateViz();
             }
 
@@ -183,18 +195,18 @@ int main(int argc, char *argv[]){
                 cp.setV2d(V_2di);
                 cp.paramAttempt(n_iterations);
                 V_2d = cp.getV2d();
-                if (is_displaying_v2d) viewer.data().set_mesh(V_2d, F);
-                viewer.data().set_uv(V_2d * scale_uv);
+                if (is_displaying_v2d) viewer.data(orig_id).set_mesh(V_2d, F);
+                viewer.data(orig_id).set_uv(V_2d * scale_uv);
                 updateViz();
             }
 
-            if (ImGui::SliderFloat("Rigidity penalty", &edges_f, 0.0f, 10.0f, "%.3f")){
+            if (ImGui::SliderFloat("Rigidity penalty", &edges_f, 0.01f, 10.0f, "%.3f")){
                 cp.setCoeffs(stretch_f, edges_f);
                 cp.setV2d(V_2di);
                 cp.paramAttempt(n_iterations);
                 V_2d = cp.getV2d();
-                if (is_displaying_v2d) viewer.data().set_mesh(V_2d, F);
-                viewer.data().set_uv(V_2d * scale_uv);
+                if (is_displaying_v2d) viewer.data(orig_id).set_mesh(V_2d, F);
+                viewer.data(orig_id).set_uv(V_2d * scale_uv);
                 updateViz();
             }
 
@@ -223,6 +235,16 @@ int main(int argc, char *argv[]){
             if (ImGui::Button("Save UV", ImVec2(-1, 0))){
                 igl::writeOBJ("../saved_uv.obj", V_2d, F);
             }
+            if (ImGui::SliderFloat("Seam allowance", &allowance, 0.0f, 0.5f, "%.3f")){
+                //V_2d = cp.getV2d();
+                //Eigen::MatrixXd edge_begs, edge_ends; 
+                //createPattern(V_2d, cp.getBnd(), 0.2, edge_begs, edge_ends);
+                //viewer.data(hud_id).add_edges(edge_begs, edge_ends, Eigen::RowVector3d(0, 0, 0));
+                updateViz();
+            }
+            if (ImGui::Button("Save pattern", ImVec2(-1, 0))){
+                savePattern(V_2d, cp.getBnd(), 0.2);
+            }
             ImGui::End();
         }
     
@@ -234,7 +256,7 @@ int main(int argc, char *argv[]){
             double coeff = std::pow(std::sin(anim_time), 2);
             viewer.core().lighting_factor = coeff;
             Eigen::MatrixXd V = coeff * V_3d + (1-coeff) * V_2d;
-            viewer.data().set_mesh(V, F);
+            viewer.data(orig_id).set_mesh(V, F);
             updateViz();
         }
         return true;
@@ -261,10 +283,10 @@ int main(int argc, char *argv[]){
 
             bo.setSelectedVertices(selected_vs);
 
-            viewer.data().clear_points();
+            viewer.data(orig_id).clear_points();
             for (int i=0; i<selected_vs.size(); i++){
                 if (selected_vs[i] == -1) continue;
-                viewer.data().add_points(V_3d.row(selected_vs[i]), Eigen::RowVector3d(1.0, 0, 0));
+                viewer.data(orig_id).add_points(V_3d.row(selected_vs[i]), Eigen::RowVector3d(1.0, 0, 0));
             }
             return true;
         }
@@ -273,9 +295,10 @@ int main(int argc, char *argv[]){
 
     updateViz();
 
-    viewer.data().set_colors(Eigen::RowVector3d(1.0, 1.0, 1.0));
-    viewer.data().line_width = 3;
-    viewer.data().show_lines = false;
+    viewer.data(orig_id).set_colors(Eigen::RowVector3d(1.0, 1.0, 1.0));
+    viewer.data(orig_id).line_width = 3;
+    viewer.data(hud_id).line_width = 4;
+    viewer.data(orig_id).show_lines = false;
     viewer.core().is_animating = true;
     viewer.core().set_rotation_type(igl::opengl::ViewerCore::ROTATION_TYPE_TRACKBALL);
     viewer.core().background_color = Eigen::Vector4f(202.0/255.0, 190.0/255.0, 232.0/255.0, 1.0);

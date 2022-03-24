@@ -15,13 +15,14 @@ if (NOT TARGET nlohmann_json)
 endif() 
 
 add_subdirectory(lib/implot)
+add_subdirectory(lib/clipper)
 include_directories(include)
 
 file(GLOB PARAMSRC src/param/*.cpp)
 
 add_library(${PROJECT_NAME} ${PARAMSRC})
 target_include_directories(${PROJECT_NAME} PUBLIC include include/param)
-target_link_libraries(${PROJECT_NAME} PUBLIC igl::core nlohmann_json)
+target_link_libraries(${PROJECT_NAME} PUBLIC igl::core nlohmann_json polyclipping)
 
 add_executable(woven_viz app/woven_viz.cpp)
 target_link_libraries(woven_viz woven_param igl::opengl_glfw igl::opengl_glfw_imgui igl::png)
@@ -35,7 +36,7 @@ target_link_libraries(multiple_poses woven_param igl::opengl_glfw igl::opengl_gl
 add_executable(procrustes_test app/procrustes_test.cpp)
 target_link_libraries(procrustes_test woven_param igl::opengl_glfw_imgui)
 
-add_executable(triangle_energies app/triangle_energies.cpp)
+add_executable(triangle_energies app/triangle_energies.cpp src/surface_net.cpp)
 target_link_libraries(triangle_energies woven_param igl::opengl_glfw igl::opengl_glfw_imgui)
 
 add_executable(measure_alignment app/measure_alignment.cpp)

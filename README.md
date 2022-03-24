@@ -27,6 +27,13 @@ make -j woven_viz         #build test app
 ./woven_viz [path/to/input/mesh.obj]
 ```
 
+Then, the main features of our parameterization can be visualized with the following commands:
+```
+make -j woven_viz && ./woven_viz ../data/jumpsuit_multipose/front1.obj
+make -j multiple_poses && ./multiple_poses
+make -j reflec_param && ./reflec_param
+```
+
 ## Features
 
 * Shearing: we allow threads to shear, if this helps reduce stretch on the grain axes.
