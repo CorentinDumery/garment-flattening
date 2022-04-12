@@ -61,9 +61,12 @@ bool finalParamMultiPatch(const std::vector<Eigen::MatrixXd>& vec_V_3d,
 
     #ifdef USE_JSON_CONFIG
     std::string config_path = "../configs/final_config.json";
+    bool config_found = std::ifstream(config_path.c_str()).good();
     nlohmann::json config;
-    std::ifstream input_config(config_path);
-    input_config >> config;
+    if (config_found){
+        std::ifstream input_config(config_path);
+        input_config >> config;
+    }
     #endif
 
     #ifdef SAVE_FINAL_PARAM_INPUTS
@@ -116,13 +119,15 @@ bool finalParamMultiPatch(const std::vector<Eigen::MatrixXd>& vec_V_3d,
                            init_type));
         
         #ifdef USE_JSON_CONFIG
-        ptr->loadConfig(config_path);
+        if (config_found){
+            ptr->loadConfig(config_path);
 
-        if (config["debug"]["save_init_params"]){
-            std::cout << "Saving init params..." << std::endl;
-            Eigen::MatrixXd V2_init = ptr->getV2d();
-            std::string path = config["debug"]["save_init_paths"];
-            igl::writeOBJ(path + "init_param_" + std::to_string(patch_id) + ".obj", V2_init, vec_F[patch_id]);
+            if (config["debug"]["save_init_params"]){
+                std::cout << "Saving init params..." << std::endl;
+                Eigen::MatrixXd V2_init = ptr->getV2d();
+                std::string path = config["debug"]["save_init_paths"];
+                igl::writeOBJ(path + "init_param_" + std::to_string(patch_id) + ".obj", V2_init, vec_F[patch_id]);
+            }
         }
         #endif
 
@@ -131,7 +136,7 @@ bool finalParamMultiPatch(const std::vector<Eigen::MatrixXd>& vec_V_3d,
 
     int max_iter = 20;
     #ifdef USE_JSON_CONFIG
-    max_iter = config["max_iter"];
+    if (config_found) max_iter = config["max_iter"];
     #endif
 
     for (int current_iter = 0; current_iter < max_iter; current_iter++){
