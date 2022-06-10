@@ -8,7 +8,7 @@
 
 Previous UV mapping methods (ABF++, LSCM, ARAP, BFF, SCAF, AutoCuts, OptCuts, ...) are rotation invariant and minimize triangle distortion without any assumption on the material being flattened. These methods are unfit for anisotropic materials which stretch unequally along different axes.  
 
-This repository provides an implementation of the anisotropic parameterization described in TODO by TODO.
+This repository provides an implementation of the anisotropic parameterization described in <a href="https://igl.ethz.ch/projects/computational-patternmaking/computational-pattern-making-paper.pdf">Computational Pattern Making from 3D Garment Models</a> by Pietroni et al.
 It's original intent is to accurately flatten woven textiles, for which the thread structure induces
 anisotropy in their ability to stretch.</td>
           <td width="30%"><img style="float: right;" src="images/woven_viz.gif" margin="35px"></td>
@@ -18,7 +18,7 @@ anisotropy in their ability to stretch.</td>
 ## Testing
 
 ```
-git clone https://github.com/corentinDumery/TODO
+git clone https://github.com/CorentinDumery/garment-flattening
 git submodule update --init --recursive
 mkdir build && cd build
 cmake ..
@@ -38,28 +38,28 @@ make -j reflec_param && ./reflec_param
 
 * Shearing: we allow threads to shear, if this helps reduce stretch on the grain axes.
 
-![teaser](images/both_semispheres.png) 
+![teaser](images/both_semispheres.png)
 
 * Vertical alignment: patterns are aligned with the vertical axis in 3D.
 
-![teaser](images/align_viz.png) 
+![teaser](images/align_viz.png)
 
 * Reflectability: opposite sides or seams are constrainted to be a reflection. This makes sewing significantly easier.
 
-![teaser](images/reflec_illus.png) 
+![teaser](images/reflec_illus.png)
 
-* Multiple poses: given multiple target 3D meshes representing different poses, we produce a 2D pattern that best fits all targets. 
+* Multiple poses: given multiple target 3D meshes representing different poses, we produce a 2D pattern that best fits all targets.
 
 ## Adding to your project
 
 ```
-git add submodule https://github.com/corentinDumery/TODO
+git add submodule https://github.com/CorentinDumery/garment-flattening
 git submodule update --init --recursive
-``` 
-
-Then, in your `CMakeLists.txt`, add: 
 ```
-add_subdirectory([path_to_woven_param]/woven-param)
+
+Then, in your `CMakeLists.txt`, add:
+```
+add_subdirectory([path_to_garment-flattening]/garment-flattening)
 ...
 target_link_libraries([target] woven_param)
 ```
@@ -68,11 +68,22 @@ target_link_libraries([target] woven_param)
 
 Thank you for reading! If this repository is useful to you, feel free to reach out and/or cite our paper:
 
-TODO
+```
+@article{ComputationalPatternmaking:2022,
+  title = {Computational Pattern Making from {3D} Garment Models},
+  author = {Nico Pietroni and Corentin Dumery and Raphael Falque and Mark Liu and Teresa Vidal-Calleja and Olga Sorkine-Hornung},
+  journal = {ACM Transactions on Graphics},
+  volume = {41},
+  number = {4},
+  pages = {157:1–14},
+  year = {2022},
+  publisher = {ACM}
+}
+```
 
-![animals_figure](images/animals.png) 
+![animals_figure](images/animals.png)
 
 ## Acknowledgments
 
-Some of the models used in this repository are adapted from 
+Some of the models used in this repository are adapted from
 [Generating Datasets of 3D Garments with Sewing Patterns](https://zenodo.org/record/5267549#.YhepENso_mF) by Maria Korosteleva and Sung-Hee Lee.
