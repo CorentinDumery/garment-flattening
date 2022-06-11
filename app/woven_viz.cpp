@@ -68,6 +68,7 @@ int main(int argc, char *argv[]){
     double time_increment = 0.02;
     bool morphing = true;
     bool is_displaying_v2d = false;
+    bool show_pattern_outline = true;
     float allowance = 0.2;
     
     viewer.data(orig_id).set_mesh(V_3d, F);
@@ -102,9 +103,11 @@ int main(int argc, char *argv[]){
 
 
         viewer.data(hud_id).clear_edges();
-        Eigen::MatrixXd edge_begs, edge_ends; 
-        createPattern(V_2d, cp.getBnd(), allowance, edge_begs, edge_ends);
-        viewer.data(hud_id).add_edges(edge_begs, edge_ends, Eigen::RowVector3d(0, 0, 0));
+        if (show_pattern_outline) {
+            Eigen::MatrixXd edge_begs, edge_ends; 
+            createPattern(V_2d, cp.getBnd(), allowance, edge_begs, edge_ends);
+            viewer.data(hud_id).add_edges(edge_begs, edge_ends, Eigen::RowVector3d(0, 0, 0));
+        }
     };
 
     //helper function for menu
@@ -212,6 +215,7 @@ int main(int argc, char *argv[]){
 
             ImGui::Separator();
             ImGui::Checkbox("Debug info", &show_debug_info);
+            ImGui::Checkbox("Display outline", &show_pattern_outline);
             
             if (show_debug_info){
                 ImGui::Text("Self intersects: %s", selfIntersect(V_2d, cp.getBnd()) ? "true" : "false");
@@ -301,6 +305,7 @@ int main(int argc, char *argv[]){
     viewer.data(orig_id).show_lines = false;
     viewer.core().is_animating = true;
     viewer.core().set_rotation_type(igl::opengl::ViewerCore::ROTATION_TYPE_TRACKBALL);
-    viewer.core().background_color = Eigen::Vector4f(202.0/255.0, 190.0/255.0, 232.0/255.0, 1.0);
+    //viewer.core().background_color = Eigen::Vector4f(202.0/255.0, 190.0/255.0, 232.0/255.0, 1.0);
+    viewer.core().background_color = Eigen::Vector4f(1.0, 1.0, 1.0, 1.0);
     viewer.launch();
 }

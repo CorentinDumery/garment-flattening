@@ -130,6 +130,7 @@ int main(int argc, char *argv[]){
     viewer.core().camera_translation = Eigen::Vector3f(8, 0, 0);
     viewer.core().camera_zoom = 1.3;
     viewer.core().set_rotation_type(igl::opengl::ViewerCore::ROTATION_TYPE_NO_ROTATION);
-    viewer.core().background_color = Eigen::Vector4f(202.0/255.0, 190.0/255.0, 232.0/255.0, 1.0);
+    //viewer.core().background_color = Eigen::Vector4f(202.0/255.0, 190.0/255.0, 232.0/255.0, 1.0);
+    viewer.core().background_color = Eigen::Vector4f(1.0, 1.0, 1.0, 1.0);
     viewer.launch();
 }
