@@ -7,6 +7,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 add_definitions(-DIGL_VIEWER_VIEWER_QUIET)
 find_package(OpenMP REQUIRED)
 
+option(LIBIGL_USE_STATIC_LIBRARY "Use libigl as static library" OFF)
 if (NOT TARGET igl::core)
   add_subdirectory(lib/libigl)
 endif() 

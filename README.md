@@ -19,6 +19,7 @@ anisotropy in their ability to stretch.</td>
 
 ```
 git clone https://github.com/CorentinDumery/garment-flattening
+cd garment-flattening/
 git submodule update --init --recursive
 mkdir build && cd build
 cmake ..
