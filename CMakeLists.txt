@@ -42,3 +42,12 @@ target_link_libraries(triangle_energies woven_param igl::opengl_glfw igl::opengl
 
 add_executable(measure_alignment app/measure_alignment.cpp)
 target_link_libraries(measure_alignment woven_param)
+
+add_executable(flatten app/flatten.cpp)
+target_link_libraries(flatten woven_param)
+
+add_executable(split app/split.cpp)
+target_link_libraries(split woven_param igl::opengl_glfw igl::opengl_glfw_imgui)
+
+add_executable(split_and_flatten app/split_and_flatten.cpp)
+target_link_libraries(split_and_flatten woven_param)
