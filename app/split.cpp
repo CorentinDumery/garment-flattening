@@ -46,7 +46,8 @@ int main(int argc, char *argv[]){
 
     std::vector<Eigen::MatrixXd> V_list;
     std::vector<Eigen::MatrixXi> F_list;
-    cutMeshOnPlane(V, F, V_list, F_list);
+    Eigen::VectorXi cut0, cut1; 
+    cutMeshOnPlane(V, F, V_list, F_list, cut0, cut1);
 
     Eigen::MatrixXd V0, V1;
     Eigen::MatrixXi F0, F1;
@@ -57,6 +58,8 @@ int main(int argc, char *argv[]){
 
     igl::writeOBJ("comp0.obj", V0, F0);
     igl::writeOBJ("comp1.obj", V1, F1);
+
+    double scale = (V0.col(2).maxCoeff() - V0.col(2).minCoeff());
 
     // --- VISUALIZATION ---
 
@@ -70,8 +73,36 @@ int main(int argc, char *argv[]){
     // viz input mesh
     //viewer.data(mesh1_id).set_mesh(V, F);
 
+
+    // --- Viz cut ---
+    
+    std::cout << cut0.rows() << std::endl;
+    Eigen::MatrixXd colors = Eigen::MatrixXd::Random(cut0.rows(), 3);
+    //colors.col(3) = Eigen::VectorXd::Constant(cut0.rows(), 1.0);
+    Eigen::MatrixXd points0(cut0.rows(), 3), points1(cut0.rows(), 3);
+    
+    for (int i=0; i<cut0.rows(); i++){
+        if (cut0(i) > V_list[0].rows()) std::cout << "!!0" << std::endl;
+        if (cut1(i) > V_list[1].rows()) std::cout << "!!1" << std::endl;
+        if (cut0(i) < 0) std::cout << "!!02" << std::endl;
+        if (cut1(i) < 0) std::cout << "!!12" << std::endl;
+        points0.row(i) = V_list[0].row(cut0(i));
+        points1.row(i) = V_list[1].row(cut1(i));
+    }
+    
+    
+    Eigen::MatrixXd points1_offset = points1.rowwise() + Eigen::RowVector3d(0, 0, scale/5);
+    viewer.data(mesh1_id).add_points(points1_offset, colors);
+    viewer.data(mesh1_id).add_points(points0, colors);
+    viewer.data(mesh1_id).point_size = 12;
+    //*/
+
+    std::cout << points0 << std::endl;
+
+    // --- ---
+
     viewer.data(mesh1_id).set_mesh(V0, F0);
-    Eigen::MatrixXd V1_offset = V1.rowwise() + Eigen::RowVector3d(0, 0, 30.0);
+    Eigen::MatrixXd V1_offset = V1.rowwise() + Eigen::RowVector3d(0, 0, scale/5);
     viewer.data(mesh2_id).set_mesh(V1_offset, F1);
 
     viewer.data(plane_id).set_mesh(V_plane, F_plane);
@@ -103,6 +134,7 @@ int main(int argc, char *argv[]){
     };
 
     updateViz();
+
     viewer.data(plane_id).is_visible = false;
     viewer.core().background_color = Eigen::Vector4f(1.0, 1.0, 1.0, 1.0);
     viewer.launch();

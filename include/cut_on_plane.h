@@ -34,8 +34,8 @@ void precutMeshOnPlane(const std::vector<Eigen::Vector3d>& vertices,
                     std::vector<Eigen::Vector3d>& cutVertices,
                     std::vector<Eigen::Vector3d>& V_cut,
                     std::vector<Eigen::Vector3i>& F_cut,
-                    std::vector<Eigen::Vector3i>& cuts
-                    ){
+                    std::vector<Eigen::Vector3i>& cuts,
+                    int axis = 0){
                         
     //std::vector<Eigen::Vector3d> cutVertices;
     std::vector<Eigen::Vector3i> cutTriangles;
@@ -55,8 +55,8 @@ void precutMeshOnPlane(const std::vector<Eigen::Vector3d>& vertices,
 
         for (int i = 0; i < 3; i++)
         {
-            double z1 = vertices[triangle[i]].z();
-            double z2 = vertices[triangle[(i + 1) % 3]].z();
+            double z1 = vertices[triangle[i]](axis);
+            double z2 = vertices[triangle[(i + 1) % 3]](axis);
 
             // Check if vertex is on opposite sides of the cutting plane
             if ((z1 < z_cut && z2 > z_cut) ||
@@ -75,7 +75,7 @@ void precutMeshOnPlane(const std::vector<Eigen::Vector3d>& vertices,
                 int id2 = triangle[(edgesOnOppositeSides[i] + 1) % 3];
                 Eigen::Vector3d v1 = vertices[id1];
                 Eigen::Vector3d v2 = vertices[id2];
-                double t = (z_cut - v1.z()) / (v2.z() - v1.z());
+                double t = (z_cut - v1(axis)) / (v2(axis) - v1(axis));
                 Eigen::Vector3d intersectionPoint = v1 + t * (v2 - v1);
                 cutVertices.push_back(intersectionPoint);
                 inter_points.push_back(intersectionPoint);
@@ -174,7 +174,11 @@ void precutMeshOnPlane(const std::vector<Eigen::Vector3d>& vertices,
 void cutMeshOnPlane(const Eigen::MatrixXd& V, 
                     const Eigen::MatrixXi& F,
                     std::vector<Eigen::MatrixXd>& V_list,
-                    std::vector<Eigen::MatrixXi>& F_list){
+                    std::vector<Eigen::MatrixXi>& F_list, 
+                    Eigen::VectorXi& cut0, 
+                    Eigen::VectorXi& cut1, 
+                    int axis = 2,
+                    double z_cut = 0){
     std::vector<Eigen::Vector3d> cutVertices;
     std::vector<Eigen::Vector3d> V_cut;
     std::vector<Eigen::Vector3i> F_cut;
@@ -184,12 +188,10 @@ void cutMeshOnPlane(const Eigen::MatrixXd& V,
     std::vector<Eigen::Vector3i> F_vec;
     for (int i=0; i<V.rows(); i++) V_vec.push_back(V.row(i));
     for (int i=0; i<F.rows(); i++) F_vec.push_back(F.row(i));
-    double z_cut = 0;
-    precutMeshOnPlane(V_vec, F_vec, z_cut, cutVertices, V_cut, F_cut, cuts);
+    precutMeshOnPlane(V_vec, F_vec, z_cut, cutVertices, V_cut, F_cut, cuts, axis);
     
     Eigen::MatrixXd points_cut = Eigen::MatrixXd(cutVertices.size(), 3);
     for (int i=0; i<cutVertices.size(); i++) points_cut.row(i) = cutVertices[i];
-
 
     Eigen::MatrixXd V_cut2 = Eigen::MatrixXd(V_cut.size(), 3);
     for (int i=0; i<V_cut.size(); i++) V_cut2.row(i) = V_cut[i];
@@ -213,10 +215,56 @@ void cutMeshOnPlane(const Eigen::MatrixXd& V,
 
     Eigen::MatrixXd V_cut3;
     Eigen::MatrixXi F_cut3;
-    igl::cut_mesh(SV, SF, cuts2, V_cut3, F_cut3);
+    Eigen::VectorXi corres;
+    igl::cut_mesh<Eigen::Matrix<double, -1, -1, 0, -1, -1>, // ambiguous if template not specified
+                  Eigen::Matrix<int, -1, -1, 0, -1, -1>, 
+                  Eigen::Matrix<int, -1, -1, 0, -1, -1>, 
+                  Eigen::Matrix<int, -1, 1, 0, -1, 1> >(SV, SF, cuts2, V_cut3, F_cut3, corres);
+
+    // Find pairs of new vertices that map to the same old vertex 
+    Eigen::VectorXi pointed_at_by = Eigen::VectorXi::Constant(V_cut3.rows(), -1); 
+    std::vector<std::pair<int,int>> pairs;
+    for (int i=0; i<corres.rows(); i++){
+        if (pointed_at_by(corres[i]) != -1){
+            // vertex already assigned, so it has been duplicated
+            //std::cout << "Vertex " << corres[i] << " pointed to by both " << pointed_at_by(corres[i]) << " and " << i << std::endl; 
+            pairs.push_back(std::make_pair(corres[i], i));
+        }
+        else {
+            pointed_at_by(corres[i]) = i;
+        }
+    }
 
     Eigen::VectorXi C;
     igl::facet_components(F_cut3, C);
+
+    if (C.maxCoeff() > 1) {
+        std::cout << "ERROR while cutting mesh: more than two components, case not handled." << std::endl; 
+    }
+
+    // Extend per-face component id vector C to per vertex component C_v 
+    Eigen::VectorXi C_v = Eigen::VectorXi::Constant(V_cut3.rows(), -1);
+    for (int f_id=0; f_id<C.rows(); f_id++){
+        C_v(F_cut3(f_id, 0)) = C(f_id);
+        C_v(F_cut3(f_id, 1)) = C(f_id);
+        C_v(F_cut3(f_id, 2)) = C(f_id);
+    }
+
+    std::cout << C_v.minCoeff() << std::endl;
+
+
+    cut0 = Eigen::VectorXi::Constant(pairs.size(), -1);
+    cut1 = Eigen::VectorXi::Constant(pairs.size(), -1);
+    for (int i=0; i<pairs.size(); i++){
+        if (C_v(pairs[i].first) == 0){
+            cut0(i) = pairs[i].first;
+            cut1(i) = pairs[i].second;
+        }
+        else {
+            cut0(i) = pairs[i].second;
+            cut1(i) = pairs[i].first;    
+        }
+    }
 
     int size_comp0 = C.unaryExpr([](double val) { return val == 0 ? 1 : 0; }).sum();
     int size_comp1 = C.unaryExpr([](double val) { return val == 1 ? 1 : 0; }).sum();
@@ -241,10 +289,17 @@ void cutMeshOnPlane(const Eigen::MatrixXd& V,
 
     Eigen::MatrixXd V0, V1;
     Eigen::MatrixXi F0, F1;
-    Eigen::VectorXi I;
-    igl::remove_unreferenced(V_cut3, F_comp0, V0, F0, I);
-    igl::remove_unreferenced(V_cut3, F_comp1, V1, F1, I);
+    Eigen::VectorXi I0, I1;
+    igl::remove_unreferenced(V_cut3, F_comp0, V0, F0, I0);
+    igl::remove_unreferenced(V_cut3, F_comp1, V1, F1, I1);
 
     V_list = {V0, V1};
     F_list = {F0, F1}; // TODO potentially more components here
+
+    //std::cout << cut0 << std::endl;
+    for (int i=0; i<cut0.rows(); i++){ // TODO make more compact?
+        cut0(i) = I0(cut0(i));
+        cut1(i) = I1(cut1(i));
+    }
+    //std::cout << cut0 << std::endl;
 }
