@@ -73,31 +73,20 @@ int main(int argc, char *argv[]){
     // viz input mesh
     //viewer.data(mesh1_id).set_mesh(V, F);
 
-
     // --- Viz cut ---
     
-    std::cout << cut0.rows() << std::endl;
     Eigen::MatrixXd colors = Eigen::MatrixXd::Random(cut0.rows(), 3);
-    //colors.col(3) = Eigen::VectorXd::Constant(cut0.rows(), 1.0);
     Eigen::MatrixXd points0(cut0.rows(), 3), points1(cut0.rows(), 3);
     
     for (int i=0; i<cut0.rows(); i++){
-        if (cut0(i) > V_list[0].rows()) std::cout << "!!0" << std::endl;
-        if (cut1(i) > V_list[1].rows()) std::cout << "!!1" << std::endl;
-        if (cut0(i) < 0) std::cout << "!!02" << std::endl;
-        if (cut1(i) < 0) std::cout << "!!12" << std::endl;
         points0.row(i) = V_list[0].row(cut0(i));
         points1.row(i) = V_list[1].row(cut1(i));
     }
-    
     
     Eigen::MatrixXd points1_offset = points1.rowwise() + Eigen::RowVector3d(0, 0, scale/5);
     viewer.data(mesh1_id).add_points(points1_offset, colors);
     viewer.data(mesh1_id).add_points(points0, colors);
     viewer.data(mesh1_id).point_size = 12;
-    //*/
-
-    std::cout << points0 << std::endl;
 
     // --- ---
 

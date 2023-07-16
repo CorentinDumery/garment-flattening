@@ -227,7 +227,6 @@ void cutMeshOnPlane(const Eigen::MatrixXd& V,
     for (int i=0; i<corres.rows(); i++){
         if (pointed_at_by(corres[i]) != -1){
             // vertex already assigned, so it has been duplicated
-            //std::cout << "Vertex " << corres[i] << " pointed to by both " << pointed_at_by(corres[i]) << " and " << i << std::endl; 
             pairs.push_back(std::make_pair(corres[i], i));
         }
         else {
@@ -249,8 +248,6 @@ void cutMeshOnPlane(const Eigen::MatrixXd& V,
         C_v(F_cut3(f_id, 1)) = C(f_id);
         C_v(F_cut3(f_id, 2)) = C(f_id);
     }
-
-    std::cout << C_v.minCoeff() << std::endl;
 
 
     cut0 = Eigen::VectorXi::Constant(pairs.size(), -1);
@@ -296,10 +293,8 @@ void cutMeshOnPlane(const Eigen::MatrixXd& V,
     V_list = {V0, V1};
     F_list = {F0, F1}; // TODO potentially more components here
 
-    //std::cout << cut0 << std::endl;
     for (int i=0; i<cut0.rows(); i++){ // TODO make more compact?
         cut0(i) = I0(cut0(i));
         cut1(i) = I1(cut1(i));
     }
-    //std::cout << cut0 << std::endl;
 }

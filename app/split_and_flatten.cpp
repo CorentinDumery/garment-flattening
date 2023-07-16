@@ -60,6 +60,17 @@ double findBestCut(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int axis)
     return z;
 }
 
+void saveEigenVector(std::string savepath, const Eigen::VectorXi& vec) {
+    std::ofstream file(savepath);
+    if (file.is_open()) {
+        Eigen::IOFormat fmt(Eigen::StreamPrecision, Eigen::DontAlignCols, " ", " ");
+        file << vec.format(fmt) << std::endl;
+        file.close();
+    } else {
+        std::cerr << "Unable to open the file!" << std::endl;
+    }
+}
+
 int main(int argc, char *argv[]){
 
     std::string path_3d, output_dir, cut_axes;
@@ -86,6 +97,8 @@ int main(int argc, char *argv[]){
     std::vector<double> cut_vals = {findBestCut(V_3d, F, 0), 
                                     findBestCut(V_3d, F, 1), 
                                     findBestCut(V_3d, F, 2)};
+    Eigen::VectorXi cut0; 
+    Eigen::VectorXi cut1;
 
     std::vector<Eigen::MatrixXd> V_list = {V_3d};
     std::vector<Eigen::MatrixXi> F_list = {F};
@@ -93,14 +106,14 @@ int main(int argc, char *argv[]){
     for (int id=0; id<3; id++){
         char ax = axes[id];
         if (cut_axes.find(ax) != std::string::npos){
-            std::cout << "Cutting "  << ax << std::endl;
+            std::cout << "Cutting " << ax << std::endl;
             std::vector<Eigen::MatrixXd> V_list_n;
-            std::vector<Eigen::MatrixXi> F_list_n;
+            std::vector<Eigen::MatrixXi> F_list_n; 
             
             for (int i=0; i<V_list.size(); i++){
                 std::vector<Eigen::MatrixXd> V_list_n2;
                 std::vector<Eigen::MatrixXi> F_list_n2;
-                cutMeshOnPlane(V_list[i], F_list[i], V_list_n2, F_list_n2, id, cut_vals[id]);
+                cutMeshOnPlane(V_list[i], F_list[i], V_list_n2, F_list_n2, cut0, cut1, id, cut_vals[id]);
                 V_list_n.insert(V_list_n.end(), V_list_n2.begin(), V_list_n2.end());
                 F_list_n.insert(F_list_n.end(), F_list_n2.begin(), F_list_n2.end());
             }
@@ -109,14 +122,19 @@ int main(int argc, char *argv[]){
             F_list = F_list_n;
         }
     }
-
-    std::cout << V_list.size() << " components" << std::endl;
-
+    
+    if (cut_axes.size() > 1) std::cout << "WARNING: seam correspondences not (yet) supported for several cuts" << std::endl;
+    
+    saveEigenVector(output_dir + "/cut_vertex_ids_0.txt", cut0);
+    saveEigenVector(output_dir + "/cut_vertex_ids_1.txt", cut1);
+    
     for (int mesh=0; mesh<V_list.size(); mesh++){
         // Save 3D connected component for debugging
         std::string file_name_3d = output_dir + "/component3d_" + std::to_string(mesh) + ".obj";
         igl::writeOBJ(file_name_3d, V_list[mesh], F_list[mesh]);
-
+    }
+    
+    for (int mesh=0; mesh<V_list.size(); mesh++){
         // Compute 2D parameterization
         ClothParam cp(V_list[mesh], F_list[mesh], 0.00);
         for (int i=0; i<5; i++){
