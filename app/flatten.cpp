@@ -11,6 +11,7 @@
 
 #include "param/metrics.h"
 #include "param/cloth_param.h"
+#include "param/param_utils.h"
 
 int main(int argc, char *argv[]){
 
@@ -23,13 +24,32 @@ int main(int argc, char *argv[]){
     Eigen::MatrixXi F;
     igl::readOBJ(path_3d, V_3d, F);
 
-    ClothParam cp(V_3d, F, 0.00);
-    for (int i=0; i<5; i++){
-        cp.paramAttempt(10);
-        cp.printStretchStats();
-        std::cout << "Self intersect: " << cp.checkSelfIntersect() << std::endl;
+    meshCleanup(V_3d, F);
+
+    Eigen::VectorXi bnd;
+    igl::boundary_loop(F, bnd);
+
+    enum PARAM_TYPE {PARAM_CLOTH, PARAM_ARAP, PARAM_SCAF};
+    PARAM_TYPE param_type = PARAM_CLOTH;
+
+    if (param_type == PARAM_ARAP){ // Faulty libigl implementation?
+        V_2d = paramARAP(V_3d, F, bnd);
     }
-    V_2d = cp.getV2d();
+    else if (param_type == PARAM_SCAF){
+        V_2d = paramSCAF(V_3d, F, bnd);
+    }
+    else if (param_type == PARAM_CLOTH){
+        float stretch_f = 0.0;
+        float edges_f = 1.0;
+        ClothParam cp(V_3d, F, 0.00, {}, {}, 0, CLOTH_INIT_LSCM, true);
+        cp.setCoeffs(stretch_f, edges_f);
+        for (int i=0; i<5; i++){
+            cp.paramAttempt(10);
+            cp.printStretchStats();
+            std::cout << "Self intersect: " << cp.checkSelfIntersect() << std::endl;
+        }
+        V_2d = cp.getV2d();
+    }
 
     igl::writeOBJ(path_output, V_2d, F);
 }

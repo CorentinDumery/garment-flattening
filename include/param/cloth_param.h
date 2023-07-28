@@ -29,7 +29,8 @@ public:
                const std::vector<std::vector<std::pair<int, int>>>& dart_duplicates = {},
                const std::vector<int>& dart_tips = {},
                int seam_size = 0,
-               CLOTH_INIT_TYPE = CLOTH_INIT_LSCM);
+               CLOTH_INIT_TYPE = CLOTH_INIT_LSCM, 
+               bool disable_stretch_penalty = false);
 
     // Tries to parameterize. Returns whether max_stretch 
     // was satisfied within max number of iterations,

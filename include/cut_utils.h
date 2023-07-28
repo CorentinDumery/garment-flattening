@@ -84,7 +84,8 @@ std::vector<int> restoreCutOrder(const std::vector<int>& selected,
 
     if (curr_v < 0){
         std::cout << "ERROR: cut starting point not found" << std::endl;
-        return {};
+        //return {};
+        curr_v = 0;
     }
     
     std::vector<int> new_selected = {selected[curr_v]};

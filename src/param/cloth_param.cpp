@@ -10,22 +10,55 @@
 #endif
 
 #define CHECK_TOPOLOGY_PARAM
+//#define INPUT_CHECKS_PARAM
 
 ClothParam::ClothParam(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
                        double max_stretch,
                        const std::vector<std::vector<std::pair<int, int>>>& dart_duplicates,
                        const std::vector<int>& dart_tips,
                        int seam_size,
-                       CLOTH_INIT_TYPE init_type)
+                       CLOTH_INIT_TYPE init_type,
+                       bool disable_stretch_penalty)
             : F_(F), V_3d_(V_3d), max_stretch_(max_stretch), seam_size_(seam_size), init_type_(init_type){
     
     igl::boundary_loop(F, bnd_);
 
+    if (disable_stretch_penalty){
+        bo_.enable_stretch_eqs_ = false;
+    }
+
     #ifdef CHECK_TOPOLOGY_PARAM
+    std::cout << "Boundary size: " << bnd_.rows() << std::endl;
     std::vector<std::vector<int>> bnds;
     igl::boundary_loop(F, bnds);
     if (bnds.size() != 1) 
         std::cout << "ERROR: wrong topology, number of boundaries = " << bnds.size() << " (should be 1)" << std::endl;
+    if (bnds[0].size() != bnd_.rows())
+        std::cout << "ERROR: wrong boundary size, " << bnds[0].size() << " vs " << bnd_.rows() << std::endl;
+    #endif
+
+    #ifdef INPUT_CHECKS_PARAM
+    bool check_degen = false;
+    for (int i=0; i<F.rows(); i++){
+        if (F(i,0)==F(i,1) || F(i,0)==F(i,2) || F(i,1)==F(i,2)){
+            std::cout << "ERROR: degenerate face: " << F.row(i) << std::endl;
+            check_degen = true;
+        }
+    }
+    std::cout << "Test degenerate face: " << check_degen << std::endl;
+
+    double tol = 10e-6;
+    for (int i=0; i<V_3d.rows(); i++){
+        for (int j=i+1; j<V_3d.rows(); j++){
+            if ((V_3d.row(i) - V_3d.row(j)).norm() < tol){
+                std::cout << "ERROR: duplicate vertices: " << V_3d.row(i) << V_3d.row(i) << std::endl;
+            }
+        }
+    }
+    #endif
+
+    #ifdef DEBUG_CLOTH_PARAM
+    std::cout << "Initializing param..." << std::endl;
     #endif
 
     if (init_type_ == CLOTH_INIT_ARAP){
@@ -43,6 +76,10 @@ ClothParam::ClothParam(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
         V_2d_ = paramSCAF(V_3d_, F_, bnd_);
     }
 
+    #ifdef DEBUG_CLOTH_PARAM
+    std::cout << "Param initialized." << std::endl;
+    #endif
+
     bool rescale_init = true;
     if (rescale_init){
         V_2d_ *= igl::avg_edge_length(V_3d_, F_) / igl::avg_edge_length(V_2d_, F_);
@@ -50,6 +87,10 @@ ClothParam::ClothParam(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
 
     setDartPairs(dart_duplicates, dart_tips);
     bo_.setSeamSize(seam_size_);
+
+    #ifdef DEBUG_CLOTH_PARAM
+    std::cout << "Allocating memory... (" << F.rows() << "," <<  V_3d.rows() << ")" << std::endl;
+    #endif
     bo_.allocateMemory(F.rows(), V_3d.rows());
     
     if (rotate_each_iter_){
@@ -57,6 +98,7 @@ ClothParam::ClothParam(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
                                                             Eigen::RowVector3d(0.0,1.0,0.0));
         V_2d_ = (R1 * V_2d_.transpose()).transpose();
     }
+    
 };
 
 void ClothParam::paramIter(int n_iter){

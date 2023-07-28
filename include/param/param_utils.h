@@ -7,6 +7,9 @@
 #include <Eigen/Core>
 #include <iostream>
 
+
+void meshCleanup(Eigen::MatrixXd& V_3d, Eigen::MatrixXi& F);
+
 /**
  * @brief Computes an ideal *reflection* between points1 and points2 using 
  * procrustean analysis.

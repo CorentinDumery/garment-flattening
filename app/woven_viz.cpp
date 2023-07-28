@@ -16,12 +16,14 @@
 #include <igl/boundary_loop.h>
 #include <igl/avg_edge_length.h>
 #include <igl/doublearea.h>
+#include <igl/remove_unreferenced.h>
 #include <igl/jet.h>
 
 #include "metrics.h"
 #include <param/bary_optimizer.h>
 #include <param/self_intersect.h>
 #include "param/cloth_param.h"
+#include "param/param_utils.h"
 #include "draw_colormap.h"
 #include "export_pattern.h"
 
@@ -36,11 +38,19 @@ int main(int argc, char *argv[]){
         igl::readOBJ("../data/jumpsuit_multipose/front1.obj", V_3d, F);
     }
 
+    std::cout << V_3d.rows() << ", " << V_3d.cols() << std::endl;
+    std::cout << F.rows() << ", " << F.cols() << std::endl;
+
+    meshCleanup(V_3d, F);
+
     double scale_f = 1.0;
     float scale_uv = 1.0;
     V_3d *= scale_f;
 
     ClothParam cp(V_3d, F, 0.00);
+    float stretch_f = 0.0;
+    float edges_f = 1.0;
+    cp.setCoeffs(stretch_f, edges_f);
     V_2di = cp.getV2d();
     cp.paramAttempt(5);
     V_2d = cp.getV2d();
@@ -48,7 +58,6 @@ int main(int argc, char *argv[]){
     V_3d.col(0) = V_3d.col(0).array() - (V_3d(0,0) - V_2d(0,0));
     V_3d.col(1) = V_3d.col(1).array() - (V_3d(0,1) - V_2d(0,1));
 
-    std::cout << "F.rows(): " << F.rows() << std::endl;
     Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> R,G,B,A;
     igl::png::readPNG("../data/grid.png",R,G,B,A);
 
@@ -61,8 +70,6 @@ int main(int argc, char *argv[]){
 
     int n_iterations = 5;
     int display_mode = 1;
-    float stretch_f = 5.0;
-    float edges_f = 1.0;
     bool show_debug_info = false;
     double anim_time = 0;
     double time_increment = 0.02;
@@ -177,7 +184,7 @@ int main(int argc, char *argv[]){
                                 
             ImGui::SliderFloat("Light factor", &viewer.core().lighting_factor, 0.0f, 5.0f, "%.3f");
             
-            if (ImGui::SliderFloat("Scale fibers", &scale_uv, 0.1f, 3.0f, "%.3f")){
+            if (ImGui::SliderFloat("Scale fibers", &scale_uv, 0.1f, 300.0f, "%.3f")){
                 display_mode = 1;
                 viewer.data(orig_id).set_uv(V_2d * scale_uv);
             }

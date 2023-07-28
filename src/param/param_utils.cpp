@@ -9,11 +9,88 @@
 
 #include <igl/lscm.h>
 
+#include <igl/remove_unreferenced.h>
+#include <igl/remove_duplicate_vertices.h>
+
 // Required for ARAP
 #include <igl/arap.h>
 #include <igl/boundary_loop.h>
 #include <igl/harmonic.h>
 #include <igl/map_vertices_to_circle.h>
+
+// Required for SCAF
+#ifdef USE_SCAF_PARAM
+#include <igl/triangle/scaf.h>
+#include <igl/arap.h>
+#include <igl/boundary_loop.h>
+#include <igl/harmonic.h>
+#include <igl/map_vertices_to_circle.h>
+#include <igl/MappingEnergyType.h>
+#include <igl/doublearea.h>
+#include <igl/PI.h>
+#include <igl/flipped_triangles.h>
+#include <igl/topological_hole_fill.h>
+#endif
+
+void meshCleanup(Eigen::MatrixXd& V_3d, Eigen::MatrixXi& F){
+    Eigen::MatrixXd V_3db(V_3d.rows(), 3);
+    V_3db.col(0) = V_3d.col(0);
+    V_3db.col(1) = V_3d.col(1);
+    V_3db.col(2) = V_3d.col(2);
+    V_3d = V_3db;
+
+    Eigen::MatrixXd NV;
+    Eigen::MatrixXi NF;
+    Eigen::VectorXi I, J;
+    igl::remove_unreferenced(V_3d, F, NV, NF, I, J);
+    std::cout << "Removing unref vertices: " << V_3d.rows() << " down to " << NV.rows() << std::endl;
+    V_3d = NV;
+    F = NF;
+
+    Eigen::MatrixXd SV;
+    Eigen::VectorXi SVI, SVJ;
+    igl::remove_duplicate_vertices(V_3d, 1e-5, SV, SVI, SVJ);
+    // remap faces
+    Eigen::MatrixXi SF(F.rows(), F.cols());
+    for (int i=0; i<F.rows(); i++){
+        SF(i,0) = SVJ(F(i,0));
+        SF(i,1) = SVJ(F(i,1));
+        SF(i,2) = SVJ(F(i,2));
+    } 
+
+    V_3d = SV;
+    F = SF;
+
+
+    std::vector<int> degenerateRows;
+    degenerateRows.reserve(F.rows());
+
+    // Identify degenerate triangles (rows with two or more equal indices)
+    for (int i = 0; i < F.rows(); ++i) {
+        if (F(i, 0) == F(i, 1) || F(i, 0) == F(i, 2) || F(i, 1) == F(i, 2)) {
+            degenerateRows.push_back(i);
+        }
+    }
+
+    // Create the new matrix F2 without degenerate triangles
+    int rowsToRemove = degenerateRows.size();
+    int rowsOriginal = F.rows();
+    int rowsNew = rowsOriginal - rowsToRemove;
+    Eigen::MatrixXi F2(rowsNew, 3);
+
+    int srcRow = 0;
+    for (int dstRow = 0; dstRow < rowsNew; ++dstRow) {
+        while (srcRow < rowsOriginal && std::binary_search(degenerateRows.begin(), degenerateRows.end(), srcRow)) {
+            // Skip degenerate rows
+            ++srcRow;
+        }
+        if (srcRow > rowsOriginal) break;
+        F2.row(dstRow) = F.row(srcRow);
+        ++srcRow;
+    }
+
+    F = F2;
+}
 
 
 void procrustes(const Eigen::MatrixXd& points1, // to
@@ -167,6 +244,43 @@ Eigen::MatrixXd paramARAP(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
     return V_2db.array() * scale;
 }
 
+Eigen::MatrixXd paramSCAF(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
+                          const Eigen::VectorXi& bnd){
+    
+    std::cout << "ERROR: SCAF parameterization disabled" << std::endl;
+    std::cout << "(Remember to add igl::triangle to cmake project if you want to enable it)" << std::endl;
+
+    // NOT WORKING: runs into Numerical issue?
+
+    // https://github.com/libigl/libigl/blob/main/tutorial/710_SCAF/main.cpp
+    /*igl::triangle::SCAFData scaf_data;
+    Eigen::MatrixXd bnd_uv, uv_init;
+    Eigen::VectorXd M;
+    igl::doublearea(V, F, M);
+
+    float uv_scale = 1.0f;
+    igl::map_vertices_to_circle(V, bnd, bnd_uv);
+    bnd_uv *= sqrt(M.sum() / (2 * igl::PI));
+    
+    if (bnd.rows() == V.rows()) { // case: all vertex on boundary
+        uv_init.resize(V.rows(), 2);
+        for (int i = 0; i < bnd.rows(); i++)
+        uv_init.row(bnd(i)) = bnd_uv.row(i);
+    }
+    else {
+        igl::harmonic(V, F, bnd, bnd_uv, 1, uv_init);
+        if (igl::flipped_triangles(uv_init, F).size() != 0)
+        igl::harmonic(F, bnd, bnd_uv, 1, uv_init); // fallback uniform laplacian
+    }
+    
+    
+    Eigen::VectorXi b; Eigen::MatrixXd bc;
+    igl::triangle::scaf_precompute(V, F, uv_init, scaf_data, igl::MappingEnergyType::SYMMETRIC_DIRICHLET, b, bc, 0);
+    igl::triangle::scaf_solve(scaf_data, 1);
+    Eigen::MatrixXd V_uv = uv_scale * scaf_data.w_uv.topRows(V.rows());
+    return V_uv;*/
+}
+
 
 Eigen::MatrixXd paramLSCM(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
                           const Eigen::VectorXi& bnd){
@@ -182,11 +296,6 @@ Eigen::MatrixXd paramLSCM(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
     V_2db.col(0) = V_2d.col(0);
     V_2db.col(1) = V_2d.col(1);
     return V_2db;
-}
-
-Eigen::MatrixXd paramSCAF(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F, const Eigen::VectorXi& bnd){
-    std::cout << "ERROR SCAF DISABLED" << std::endl;
-    return V_3d;
 }
 
 Eigen::Matrix3d rotationVote(const Eigen::MatrixXd& V_3d,

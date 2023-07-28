@@ -131,7 +131,7 @@ void precutMeshOnPlane(const std::vector<Eigen::Vector3d>& vertices,
             F_cut.push_back(triangles[tri]);
             cuts.push_back(Eigen::Vector3i::Zero());
         }
-        else {
+        /*else {
             // get the two vertices of interest
             int loner_id = lone_vertex[tri][0];
             int v0_id = triangles[tri](loner_id);
@@ -166,6 +166,35 @@ void precutMeshOnPlane(const std::vector<Eigen::Vector3d>& vertices,
 
             F_cut.push_back(Eigen::Vector3i(v1_id, v2_id, v5_id));
             cuts.push_back(Eigen::Vector3i(0, 0, 0));
+
+        }*/
+        else {
+            // get the two vertices of interest
+            int loner_id = lone_vertex[tri][0];
+            int v0_id = triangles[tri](loner_id);
+            int v1_id = triangles[tri]((loner_id + 1) % 3);
+            int v2_id = triangles[tri]((loner_id + 2) % 3);
+            int v3_id = V_cut.size(); // these will be added on top
+            int v4_id = V_cut.size() + 1;
+            Eigen::Vector3d v3 = inter_points_per_tri[tri][0];
+            Eigen::Vector3d v4 = inter_points_per_tri[tri][1];
+            if (isPointOnLine(V_cut[v0_id], V_cut[v1_id], v4)){ // make sure we match the scheme, otherwise, swap v3 and v4
+                Eigen::Vector3d temp = v4; 
+                v4 = v3;
+                v3 = temp;
+            }
+            V_cut.push_back(v3);
+            V_cut.push_back(v4);
+
+            F_cut.push_back(Eigen::Vector3i(v0_id, v3_id, v4_id));
+            cuts.push_back(Eigen::Vector3i(0, 1, 0));
+
+            F_cut.push_back(Eigen::Vector3i(v1_id, v4_id, v3_id));
+            cuts.push_back(Eigen::Vector3i(0, 1, 0));
+
+            F_cut.push_back(Eigen::Vector3i(v1_id, v2_id, v4_id));
+            cuts.push_back(Eigen::Vector3i(0, 0, 0));
+            
 
         }
     }
@@ -212,6 +241,12 @@ void cutMeshOnPlane(const Eigen::MatrixXd& V,
         SF(i,1) = SVJ(F_cut2(i,1));
         SF(i,2) = SVJ(F_cut2(i,2));
     } 
+
+    // see https://github.com/libigl/libigl/issues/1078 
+    // https://github.com/libigl/libigl/blob/main/include/igl/slice_mask.h
+    // https://github.com/libigl/libigl/blob/main/include/igl/triangle/cdt.cpp
+    //igl::slice_mask(WE,(WE.array().col(0) != WE.array().col(1)).eval(), 1, WE);
+    
 
     Eigen::MatrixXd V_cut3;
     Eigen::MatrixXi F_cut3;
