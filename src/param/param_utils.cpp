@@ -47,6 +47,8 @@ void meshCleanup(Eigen::MatrixXd& V_3d, Eigen::MatrixXi& F){
     V_3d = NV;
     F = NF;
 
+    // DISABLED BECAUSE THE FOLLOWING OPERATIONS MODIFY F'S SIZE
+    /*
     Eigen::MatrixXd SV;
     Eigen::VectorXi SVI, SVJ;
     igl::remove_duplicate_vertices(V_3d, 1e-5, SV, SVI, SVJ);
@@ -61,7 +63,7 @@ void meshCleanup(Eigen::MatrixXd& V_3d, Eigen::MatrixXi& F){
     V_3d = SV;
     F = SF;
 
-
+    
     std::vector<int> degenerateRows;
     degenerateRows.reserve(F.rows());
 
@@ -89,7 +91,7 @@ void meshCleanup(Eigen::MatrixXd& V_3d, Eigen::MatrixXi& F){
         ++srcRow;
     }
 
-    F = F2;
+    F = F2;*/
 }
 
 

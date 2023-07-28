@@ -21,8 +21,10 @@ int main(int argc, char *argv[]){
     if (argc >= 3){path_output = argv[2];}
 
     Eigen::MatrixXd V_2d, V_3d;
-    Eigen::MatrixXi F;
+    Eigen::MatrixXi F, init_F;
     igl::readOBJ(path_3d, V_3d, F);
+
+    init_F = F;
 
     meshCleanup(V_3d, F);
 
@@ -52,4 +54,6 @@ int main(int argc, char *argv[]){
     }
 
     igl::writeOBJ(path_output, V_2d, F);
+
+    if (F.rows() != init_F.rows()) std::cout << "WARNING: output F has different number of rows from input" << std::endl;
 }
