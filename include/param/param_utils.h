@@ -53,6 +53,11 @@ Eigen::MatrixXd paramARAP(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
 Eigen::MatrixXd paramLSCM(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F, const Eigen::VectorXi& bnd);
 Eigen::MatrixXd paramSCAF(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F, const Eigen::VectorXi& bnd);
 
+
+Eigen::MatrixXd paramLSCMwithConstraint(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
+                                        int v1_id, double v1_u, double v1_v,
+                                        int v2_id, double v2_u, double v2_v);
+
 /**
  * @brief Computes the rotation that aligns the first input vector with the second vector 
  */

@@ -300,6 +300,24 @@ Eigen::MatrixXd paramLSCM(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
     return V_2db;
 }
 
+Eigen::MatrixXd paramLSCMwithConstraint(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
+                                        int v1_id, double v1_u, double v1_v,
+                                        int v2_id, double v2_u, double v2_v){
+    Eigen::VectorXi b(2,1);
+    b(0) = v1_id;
+    b(1) = v2_id;
+    Eigen::MatrixXd bc(2, 2);
+    bc<< v1_u, v1_v, 
+         v2_u, v2_v;
+
+    Eigen::MatrixXd V_2d;
+    igl::lscm(V_3d,F,b,bc,V_2d);
+    Eigen::MatrixXd V_2db = Eigen::MatrixXd::Zero(V_2d.rows(), 3);
+    V_2db.col(0) = V_2d.col(0);
+    V_2db.col(1) = V_2d.col(1);
+    return V_2db;
+}
+
 Eigen::Matrix3d rotationVote(const Eigen::MatrixXd& V_3d,
                              const Eigen::MatrixXd& V_2d,
                              const Eigen::MatrixXi& F,
