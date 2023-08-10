@@ -2,12 +2,17 @@
 #include <Eigen/Sparse>
 #include <Eigen/IterativeLinearSolvers> // https://forum.kde.org/viewtopic.php?f=74&t=125165
 #include <vector>
+#include <fstream>
 
 #include <igl/readOBJ.h>
 #include <igl/writeOBJ.h>
 #include <igl/boundary_loop.h>
 
 #include "param/param_utils.h"
+
+#ifdef FLATTEN_WITH_UI
+#include <igl/opengl/glfw/Viewer.h>
+#endif
 
 typedef Eigen::DiagonalMatrix<double, Eigen::Dynamic> DiagonalMatrixXd;
 
@@ -193,6 +198,7 @@ int main(int argc, char *argv[]){
     if (argc >= 5){
         path_sleeve_ids = argv[4];
         sleeve_ids = readVectorIntFile(path_sleeve_ids);
+        // TODO: check no v_id is in both sleeve and middle
     }
     if (argc >= 6){
         path_sleeve_pos = argv[5];
@@ -215,9 +221,9 @@ int main(int argc, char *argv[]){
     if (bnds[0].size() != bnd.rows())
         std::cout << "ERROR: wrong boundary size, " << bnds[0].size() << " vs " << bnd.rows() << std::endl;
 
-    if (sleeve_ids.size() > 2) {
+    if (false && sleeve_ids.size() > 2) { // TODO doesn't work, "bc" and "b" in igl::lscm seem buggy
         int sv1 = 0;
-        int sv2 = 1;
+        int sv2 = sleeve_ids.size() - 1;
         V_2d = paramLSCMwithConstraint(V_3d, F, sleeve_ids[sv1], sleeve_pos(sv1,0), sleeve_pos(sv1,1), sleeve_ids[sv2], sleeve_pos(sv2,0), sleeve_pos(sv2,1));
     }
     else {
@@ -225,13 +231,19 @@ int main(int argc, char *argv[]){
     }
     
     // if LSCM flips the mesh, unflip it
+    ///*
     Eigen::Vector3d v1 = (V_2d.row(F(0, 1)) - V_2d.row(F(0, 0))).transpose();
     Eigen::Vector3d v2 = (V_2d.row(F(0, 2)) - V_2d.row(F(0, 0))).transpose();
     Eigen::Vector3d n0 = v1.cross(v2);
     if (n0(2) < 0) {
         std::cout << "Initial solution flipped, unflipping..." << std::endl;
-        V_2d.col(0) *= - 1.0;
-    }
+        V_2d.col(1) *= - 1.0;
+    }//*/
+
+    Eigen::MatrixXd R1 = rotationVote(V_3d, V_2d, F, Eigen::RowVector3d(0, 1.0,0.0), 
+                                                     Eigen::RowVector3d(0.0,1.0,0.0));
+    V_2d = (R1 * V_2d.transpose()).transpose();
+    V_2d = V_2d.rowwise() + (sleeve_pos.row(0) - V_2d.row(sleeve_ids[0]));
     
 
     Eigen::SparseMatrix<double> A;
@@ -239,7 +251,11 @@ int main(int argc, char *argv[]){
     DiagonalMatrixXd W;
     Eigen::VectorXd x;
 
-    int n_iterations = 10;
+    #ifdef FLATTEN_WITH_UI
+    std::vector<Eigen::MatrixXd> V_2d_list = {V_2d};
+    #endif
+
+    int n_iterations = 100;
     for (int it=0; it<n_iterations; it++){
         makeSparseMatrix(V_2d, V_3d, F, A, b, W, x, middle_ids, sleeve_ids, sleeve_pos);
 
@@ -260,13 +276,55 @@ int main(int argc, char *argv[]){
             if(solver.info() == Eigen::InvalidInput) 
                 std::cout << "InvalidInput" << std::endl;
         }
+
+        /*Eigen::MatrixXd res = Eigen::MatrixXd::Zero(V_2d.rows(), 3);
+        for (int i=0; i<x.rows()/2; i++){
+            res(i, 0) = x(2 * i); 
+            res(i, 1) = x(2 * i + 1);
+        }*/
+
+        for (int i=0; i<x.rows()/2; i++){
+            V_2d(i, 0) = x(2 * i); 
+            V_2d(i, 1) = x(2 * i + 1);
+        }
+
+        #ifdef FLATTEN_WITH_UI
+        V_2d_list.push_back(V_2d);
+        #endif
     }
 
-    Eigen::MatrixXd res = Eigen::MatrixXd::Zero(V_2d.rows(), 3);
-    for (int i=0; i<x.rows()/2; i++){
-        res(i, 0) = x(2 * i); 
-        res(i, 1) = x(2 * i + 1);
-    }
+    
 
-    igl::writeOBJ(path_output, res, F);
+    igl::writeOBJ(path_output, V_2d, F);
+
+    #ifdef FLATTEN_WITH_UI
+    igl::opengl::glfw::Viewer viewer;
+
+    int current = 0;
+
+    auto updateMesh = [&]() {
+        viewer.data(0).clear();
+        viewer.data(0).set_mesh(V_2d_list[current], F);
+        return true;
+    };
+
+    // Bind the updateMesh function to the viewer's 'g' key
+    viewer.callback_key_pressed = [&](igl::opengl::glfw::Viewer&, unsigned int key, int) -> bool {
+        if (key == 'g' || key == 'G') {
+            current = (current + 1) % V_2d_list.size();
+            std::cout << "V_2d iteration: " << current << std::endl;
+            updateMesh();
+        }
+        return true;
+    };
+
+    // Initialize the viewer with the first mesh
+    updateMesh();
+
+
+    //viewer.data().set_mesh(V_2d, F);
+    viewer.append_mesh();
+    viewer.data_list[1].set_mesh(V_3d, F);
+    viewer.launch();
+    #endif
 }

@@ -53,4 +53,4 @@ add_executable(split_and_flatten app/split_and_flatten.cpp)
 target_link_libraries(split_and_flatten woven_param)
 
 add_executable(flatten_with_constraints app/flatten_with_constraints.cpp)
-target_link_libraries(flatten_with_constraints woven_param)
+target_link_libraries(flatten_with_constraints woven_param igl::opengl_glfw )

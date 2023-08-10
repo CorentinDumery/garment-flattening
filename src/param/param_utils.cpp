@@ -290,7 +290,10 @@ Eigen::MatrixXd paramLSCM(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
     b(0) = bnd(0);
     b(1) = bnd(bnd.size()/2);
     Eigen::MatrixXd bc(2, 2);
-    bc<<0,0,1,0;
+
+    double dist = (V_3d.row(b(0)) - V_3d.row(b(1))).norm();
+
+    bc<<0,0,dist,0;
 
     Eigen::MatrixXd V_2d;
     igl::lscm(V_3d,F,b,bc,V_2d);
@@ -307,11 +310,24 @@ Eigen::MatrixXd paramLSCMwithConstraint(const Eigen::MatrixXd& V_3d, const Eigen
     b(0) = v1_id;
     b(1) = v2_id;
     Eigen::MatrixXd bc(2, 2);
-    bc<< v1_u, v1_v, 
-         v2_u, v2_v;
+    std::cout << b << std::endl;
+    //bc<< v1_u, v2_u, v1_v,  v2_v;
+    bc<< v1_u, v1_v, v2_u, v2_v;
+    
+    //std::cout << bc << std::endl;
+    /*
+    bc.row(0) = Eigen::RowVector2d(v1_u, v1_v);
+    bc.row(1) = Eigen::RowVector2d(v2_u, v2_v);
+
+
+    bc.row(0) = Eigen::RowVector2d(v1_u, v2_u);
+    bc.row(1) = Eigen::RowVector2d(v1_v, v2_v);
+    bc.row(2) = Eigen::RowVector2d(0, 0);*/
+
+    std::cout << bc << std::endl;
 
     Eigen::MatrixXd V_2d;
-    igl::lscm(V_3d,F,b,bc,V_2d);
+    igl::lscm(V_3d, F, b, bc, V_2d);
     Eigen::MatrixXd V_2db = Eigen::MatrixXd::Zero(V_2d.rows(), 3);
     V_2db.col(0) = V_2d.col(0);
     V_2db.col(1) = V_2d.col(1);
