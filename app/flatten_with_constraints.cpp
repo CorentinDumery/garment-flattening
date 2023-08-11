@@ -238,12 +238,18 @@ int main(int argc, char *argv[]){
     
     // if LSCM flips the mesh, unflip it
     ///*
+    Eigen::MatrixXd normals;
+    igl::per_face_normals(V_3d, F, normals);
+    double mean_normal = normals.col(2).mean();
+
     Eigen::Vector3d v1 = (V_2d.row(F(0, 1)) - V_2d.row(F(0, 0))).transpose();
     Eigen::Vector3d v2 = (V_2d.row(F(0, 2)) - V_2d.row(F(0, 0))).transpose();
     Eigen::Vector3d n0 = v1.cross(v2);
-    if (n0(2) < 0) {
+    bool flip_output = false;
+    if (n0(2) * mean_normal < 0) {
         std::cout << "Initial solution flipped, unflipping..." << std::endl;
         V_2d.col(1) *= - 1.0;
+        flip_output = true;
     }//*/
 
     Eigen::MatrixXd R1 = rotationVote(V_3d, V_2d, F, Eigen::RowVector3d(0, 1.0,0.0), 
@@ -283,12 +289,6 @@ int main(int argc, char *argv[]){
                 std::cout << "InvalidInput" << std::endl;
         }
 
-        /*Eigen::MatrixXd res = Eigen::MatrixXd::Zero(V_2d.rows(), 3);
-        for (int i=0; i<x.rows()/2; i++){
-            res(i, 0) = x(2 * i); 
-            res(i, 1) = x(2 * i + 1);
-        }*/
-
         for (int i=0; i<x.rows()/2; i++){
             V_2d(i, 0) = x(2 * i); 
             V_2d(i, 1) = x(2 * i + 1);
@@ -299,7 +299,9 @@ int main(int argc, char *argv[]){
         #endif
     }
 
-    
+    if (flip_output){
+        V_2d.col(1) *= - 1.0;
+    }
 
     igl::writeOBJ(path_output, V_2d, F);
 
