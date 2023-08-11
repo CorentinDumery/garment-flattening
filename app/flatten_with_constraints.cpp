@@ -10,6 +10,7 @@
 
 #include "param/param_utils.h"
 
+//#define FLATTEN_WITH_UI
 #ifdef FLATTEN_WITH_UI
 #include <igl/opengl/glfw/Viewer.h>
 #endif
@@ -22,8 +23,9 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
                       Eigen::VectorXd& b, 
                       DiagonalMatrixXd& W,
                       Eigen::VectorXd& x,
-                      std::vector<int> middle_ids,
-                      std::vector<int> sleeve_ids,
+                      const std::vector<int>& middle_ids,
+                      double middle_pos,
+                      const std::vector<int>& sleeve_ids,
                       const Eigen::MatrixXd& sleeve_pos){
 
     int next_equation_id = 0;
@@ -97,7 +99,7 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
     if (enable_middle_constraint){
         for (int i: middle_ids){
             triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * i , 1.0));
-            b_vals.push_back(0);
+            b_vals.push_back(middle_pos);
             w_vals.push_back(middle_coeff);
             next_equation_id ++;
         }
@@ -189,6 +191,7 @@ int main(int argc, char *argv[]){
     std::string path_3d, path_output, path_middle_ids, path_sleeve_ids, path_sleeve_pos;
     std::vector<int> middle_ids, sleeve_ids;
     Eigen::MatrixXd sleeve_pos;
+    double middle_pos = 0;
     if (argc >= 2){path_3d = argv[1];}
     if (argc >= 3){path_output = argv[2];}
     if (argc >= 4){
@@ -196,12 +199,15 @@ int main(int argc, char *argv[]){
         middle_ids = readVectorIntFile(path_middle_ids);
     }
     if (argc >= 5){
-        path_sleeve_ids = argv[4];
+        middle_pos = atof(argv[4]);
+    }
+    if (argc >= 6){
+        path_sleeve_ids = argv[5];
         sleeve_ids = readVectorIntFile(path_sleeve_ids);
         // TODO: check no v_id is in both sleeve and middle
     }
-    if (argc >= 6){
-        path_sleeve_pos = argv[5];
+    if (argc >= 7){
+        path_sleeve_pos = argv[6];
         sleeve_pos = readFloatsFromFile(path_sleeve_pos);
     }
 
@@ -257,7 +263,7 @@ int main(int argc, char *argv[]){
 
     int n_iterations = 100;
     for (int it=0; it<n_iterations; it++){
-        makeSparseMatrix(V_2d, V_3d, F, A, b, W, x, middle_ids, sleeve_ids, sleeve_pos);
+        makeSparseMatrix(V_2d, V_3d, F, A, b, W, x, middle_ids, middle_pos, sleeve_ids, sleeve_pos);
 
         solver.compute(A.transpose() * W * W * A);
 
