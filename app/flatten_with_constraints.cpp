@@ -7,10 +7,11 @@
 #include <igl/readOBJ.h>
 #include <igl/writeOBJ.h>
 #include <igl/boundary_loop.h>
+#include <igl/per_face_normals.h>
 
 #include "param/param_utils.h"
 
-//#define FLATTEN_WITH_UI
+#define FLATTEN_WITH_UI
 #ifdef FLATTEN_WITH_UI
 #include <igl/opengl/glfw/Viewer.h>
 #endif
