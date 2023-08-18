@@ -51,7 +51,7 @@ ClothParam::ClothParam(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F,
     for (int i=0; i<V_3d.rows(); i++){
         for (int j=i+1; j<V_3d.rows(); j++){
             if ((V_3d.row(i) - V_3d.row(j)).norm() < tol){
-                std::cout << "ERROR: duplicate vertices: " << V_3d.row(i) << V_3d.row(i) << std::endl;
+                std::cout << "ERROR: duplicate vertices: " << V_3d.row(i) << " vs " << V_3d.row(j) << std::endl;
             }
         }
     }

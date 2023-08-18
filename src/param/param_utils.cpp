@@ -393,12 +393,20 @@ Eigen::Matrix3d rotationVote(const Eigen::MatrixXd& V_3d,
         Eigen::RowVector3d AE = E - A;
 
         double weight = area(f_id);
+        if (std::isnan(weight) || weight <= 10e-6){
+            //std::cout << "0 area face found during rotationVote" << std::endl;
+            continue;
+        }
+        if (AE.hasNaN()){
+            std::cout << "Failed to find orientation for a face, ignoring it." << std::endl;
+            continue;
+        }
+
         total_weights += weight;
         average_proj += AE * weight;
     }
 
     // average isn't really what we need
-
     average_proj /= total_weights;
     return computeRotation(average_proj, target_2d);
 }

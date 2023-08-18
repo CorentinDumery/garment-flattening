@@ -11,7 +11,7 @@
 
 #include "param/param_utils.h"
 
-#define FLATTEN_WITH_UI
+//#define FLATTEN_WITH_UI
 #ifdef FLATTEN_WITH_UI
 #include <igl/opengl/glfw/Viewer.h>
 #endif
@@ -236,7 +236,19 @@ int main(int argc, char *argv[]){
     else {
         V_2d = paramLSCM(V_3d, F, bnd); // TODO use the first vertex in sleeves for constraint?
     }
-    
+
+    #ifdef DEBUG_FLATTEN
+    igl::writeOBJ("init_param.obj", V_2d, F);
+    #endif
+
+    bool check_degen = true;
+    for (int i=0; i<F.rows(); i++){
+        if (F(i,0)==F(i,1) || F(i,0)==F(i,2) || F(i,1)==F(i,2)){
+            std::cout << "WARNING: degenerate face: " << F.row(i) << std::endl;
+            check_degen = true;
+        }
+    }
+
     // if LSCM flips the mesh, unflip it
     ///*
     Eigen::MatrixXd normals;
