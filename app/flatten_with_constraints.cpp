@@ -268,8 +268,9 @@ int main(int argc, char *argv[]){
     Eigen::MatrixXd R1 = rotationVote(V_3d, V_2d, F, Eigen::RowVector3d(0, 1.0,0.0), 
                                                      Eigen::RowVector3d(0.0,1.0,0.0));
     V_2d = (R1 * V_2d.transpose()).transpose();
-    V_2d = V_2d.rowwise() + (sleeve_pos.row(0) - V_2d.row(sleeve_ids[0]));
-    
+    if (sleeve_pos.rows() > 1){
+        V_2d = V_2d.rowwise() + (sleeve_pos.row(0) - V_2d.row(sleeve_ids[0]));
+    }
 
     Eigen::SparseMatrix<double> A;
     Eigen::VectorXd b;
@@ -333,7 +334,6 @@ int main(int argc, char *argv[]){
     viewer.callback_key_pressed = [&](igl::opengl::glfw::Viewer&, unsigned int key, int) -> bool {
         if (key == 'g' || key == 'G') {
             current = (current + 1) % V_2d_list.size();
-            std::cout << "V_2d iteration: " << current << std::endl;
             updateMesh();
         }
         return true;
