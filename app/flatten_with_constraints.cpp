@@ -26,6 +26,7 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
                       Eigen::VectorXd& x,
                       const std::vector<int>& middle_ids,
                       double middle_pos,
+                      const std::vector<int>& waist_ids,
                       const std::vector<int>& sleeve_ids,
                       const Eigen::MatrixXd& sleeve_pos){
 
@@ -102,6 +103,17 @@ void makeSparseMatrix(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd& V_3d,
             triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * i , 1.0));
             b_vals.push_back(middle_pos);
             w_vals.push_back(middle_coeff);
+            next_equation_id ++;
+        }
+    }
+
+    bool enable_waist_constraint = true;
+    double waist_coeff = 1000.0;
+    if (enable_waist_constraint){
+        for (int i: waist_ids){
+            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * i + 1, 1.0));
+            b_vals.push_back(0); // waist_pos = 0
+            w_vals.push_back(waist_coeff);
             next_equation_id ++;
         }
     }
@@ -189,8 +201,8 @@ Eigen::MatrixXd readFloatsFromFile(const std::string& filename) {
 
 
 int main(int argc, char *argv[]){
-    std::string path_3d, path_output, path_middle_ids, path_sleeve_ids, path_sleeve_pos;
-    std::vector<int> middle_ids, sleeve_ids;
+    std::string path_3d, path_output, path_middle_ids, path_waist_ids, path_sleeve_ids, path_sleeve_pos;
+    std::vector<int> middle_ids, waist_ids, sleeve_ids;
     Eigen::MatrixXd sleeve_pos;
     double middle_pos = 0;
     if (argc >= 2){path_3d = argv[1];}
@@ -202,13 +214,17 @@ int main(int argc, char *argv[]){
     if (argc >= 5){
         middle_pos = atof(argv[4]);
     }
-    if (argc >= 6){
-        path_sleeve_ids = argv[5];
+    if (argc >= 6 && strcmp(argv[5], "no_waist") != 0){
+        path_waist_ids = argv[5];
+        waist_ids = readVectorIntFile(path_waist_ids);
+    }
+    if (argc >= 7 ){
+        path_sleeve_ids = argv[6];
         sleeve_ids = readVectorIntFile(path_sleeve_ids);
         // TODO: check no v_id is in both sleeve and middle
     }
-    if (argc >= 7){
-        path_sleeve_pos = argv[6];
+    if (argc >= 8){
+        path_sleeve_pos = argv[7];
         sleeve_pos = readFloatsFromFile(path_sleeve_pos);
     }
 
@@ -283,7 +299,7 @@ int main(int argc, char *argv[]){
 
     int n_iterations = 100;
     for (int it=0; it<n_iterations; it++){
-        makeSparseMatrix(V_2d, V_3d, F, A, b, W, x, middle_ids, middle_pos, sleeve_ids, sleeve_pos);
+        makeSparseMatrix(V_2d, V_3d, F, A, b, W, x, middle_ids, middle_pos, waist_ids, sleeve_ids, sleeve_pos);
 
         solver.compute(A.transpose() * W * W * A);
 
