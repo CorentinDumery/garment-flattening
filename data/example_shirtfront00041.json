@@ -1,0 +1,50 @@
+{
+	"constraint_symmetry_x": {
+		"type": "equal_values",
+		"energy_coeff": 100.0,
+		"axis": 0,
+		"opposite_sign": 1,
+		"ordered_vertex_ids1": [3095, 2909],
+		"ordered_vertex_ids2": [12, 477]
+	},
+	
+	"constraint_symmetry_y": {
+		"type": "equal_values",
+		"energy_coeff": 100.0,
+		"axis": 1,
+		"opposite_sign": 0,
+		"ordered_vertex_ids1": [3095, 2909],
+		"ordered_vertex_ids2": [12, 477]
+	},
+	
+	
+	"constraint_top_of_sleeve": {
+		"type": "shared_value",
+		"energy_coeff": 1000.0,
+		"axis": 1,
+		"vertex_ids": [0, 1, 7, 12, 13, 33, 59, 60, 77, 78, 98, 115, 131, 133, 138, 197, 209, 214, 230, 308, 327, 334, 343, 359, 433, 478, 516, 517, 572, 574, 596, 619, 620, 663, 664, 690, 756, 868, 875, 910, 950, 959, 975, 989, 1015, 1023]	
+	},
+	
+	"constraint_end_of_sleeve": {
+		"type": "shared_value",
+		"energy_coeff": 1000.0,
+		"axis": 0,
+		"vertex_ids": [2, 3, 11, 12, 28, 79, 80, 130, 318, 365, 393, 451, 464, 466, 477]	
+	},
+	
+	"constraint_fixed_center_x": {
+		"type": "predefined_value",
+		"energy_coeff": 1000.0,
+		"axis": 0,
+		"vertex_ids": [2252],
+		"values": [0.0]
+	},
+	
+	"constraint_fixed_center_y": {
+		"type": "predefined_value",
+		"energy_coeff": 1000.0,
+		"axis": 1,
+		"vertex_ids": [2252],
+		"values": [0.0]
+	}
+}
