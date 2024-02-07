@@ -6,9 +6,12 @@
 
 #include <nlohmann/json.hpp>
 #include <igl/readOBJ.h>
+#include <igl/readPLY.h>
 #include <igl/writeOBJ.h>
+#include <igl/writePLY.h>
 #include <igl/boundary_loop.h>
 #include <igl/per_face_normals.h>
+#include <igl/remove_unreferenced.h>
 
 #include "param/param_utils.h"
 
@@ -62,7 +65,8 @@ void makeSparseMatrixFromJson(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd
                       Eigen::VectorXd& b, 
                       DiagonalMatrixXd& W,
                       Eigen::VectorXd& x,
-                      nlohmann::json constraints){
+                      nlohmann::json constraints,
+                      Eigen::VectorXi I){
 
     int next_equation_id = 0;
     
@@ -128,11 +132,11 @@ void makeSparseMatrixFromJson(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd
                 std::cerr << "ERROR: Sizes of v_ids and v_vals don't match." << std::endl;
             }
             for (int i=1; i<v1_ids.size(); i++){
-                triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * v1_ids[i] + axis, 1.0));
+                triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * I(v1_ids[i]) + axis, 1.0));
                 if (opposite_sign)
-                    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * v2_ids[i] + axis, 1.0));
+                    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * I(v2_ids[i]) + axis, 1.0));
                 else 
-                    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * v2_ids[i] + axis, -1.0));
+                    triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * I(v2_ids[i]) + axis, -1.0));
          
                 b_vals.push_back(0);
                 w_vals.push_back(energy);
@@ -147,8 +151,8 @@ void makeSparseMatrixFromJson(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd
                 // NOTE: it would be better to have the values share a variable instead 
                 // of just adding equations
                 // Instead: add (vi - v0)^2 = 0 for i in 1,N
-                triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * v_ids[i] + axis, 1.0));
-                triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * v_ids[0] + axis, -1.0));
+                triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * I(v_ids[i]) + axis, 1.0));
+                triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * I(v_ids[0]) + axis, -1.0));
                 b_vals.push_back(0);
                 w_vals.push_back(energy);
                 next_equation_id ++;
@@ -163,7 +167,7 @@ void makeSparseMatrixFromJson(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd
                 std::cerr << "ERROR: Sizes of v_ids and v_vals don't match." << std::endl;
             }
             for (int i=0; i<v_ids.size(); i++){
-                triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * v_ids[i] + axis, 1.0));
+                triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * I(v_ids[i]) + axis, 1.0));
                 b_vals.push_back(v_vals[i]);
                 w_vals.push_back(energy);
                 next_equation_id ++;
@@ -171,48 +175,6 @@ void makeSparseMatrixFromJson(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd
         }
     }
 
-
-    bool enable_set_seed_eqs = false;
-    if (enable_set_seed_eqs){
-        double seed_coeff = 1.0;
-        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 0, 1.0));
-        b_vals.push_back(V_2d(0,0));
-        w_vals.push_back(seed_coeff);
-        next_equation_id ++;
-
-        triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 1, 1.0));
-        b_vals.push_back(V_2d(0,1));
-        w_vals.push_back(seed_coeff);
-        next_equation_id ++;
-    }
-
-    /*
-    bool enable_middle_constraint = true;
-    double middle_coeff = 1000.0;
-    if (enable_middle_constraint){
-        for (int i: middle_ids){
-            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * i , 1.0));
-            b_vals.push_back(0);
-            w_vals.push_back(middle_coeff);
-            next_equation_id ++;
-        }
-    }
-
-    bool enable_sleeve_constraint = true;
-    double sleeve_coeff = 1000.0;
-    if (enable_sleeve_constraint){
-        for (int i=0; i<sleeve_ids.size(); i++){
-            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * sleeve_ids[i], 1.0));
-            b_vals.push_back(sleeve_pos(i, 0));
-            w_vals.push_back(sleeve_coeff);
-            next_equation_id ++;
-
-            triplet_list.push_back(Eigen::Triplet<double>(next_equation_id, 2 * sleeve_ids[i] + 1, 1.0));
-            b_vals.push_back(sleeve_pos(i, 1));
-            w_vals.push_back(sleeve_coeff);
-            next_equation_id ++;
-        }
-    }*/
 
     A.resize(next_equation_id, 2 * V_2d.rows());
     A.setFromTriplets(triplet_list.begin(), triplet_list.end());
@@ -265,7 +227,6 @@ int main(int argc, char *argv[]){
 
         std::cout << "All constraints are valid." << std::endl;
 
-        //middle_ids = readVectorIntFile(path_middle_ids);
     }
     else {
         std::cerr << "Error: missing arguments" << std::endl;
@@ -275,9 +236,25 @@ int main(int argc, char *argv[]){
     Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
     Eigen::MatrixXd V_2d, V_3d;
     Eigen::MatrixXi F, init_F;
-    igl::readOBJ(path_3d, V_3d, F);
+
+    std::cout << "Reading file..." << std::endl;
+    if (path_3d.substr(path_3d.length() - 4) == ".ply"){
+        igl::readPLY(path_3d, V_3d, F);
+    }
+    else {
+        igl::readOBJ(path_3d, V_3d, F);
+    }
+
+    Eigen::VectorXi I;
+    Eigen::MatrixXd V_temp;
+    Eigen::MatrixXi F_temp;
+    igl::remove_unreferenced(V_3d, F, V_temp, F_temp, I);
+    V_3d = V_temp;
+    F = F_temp;
 
     // ---------------------   Initial solution for V_2d   ---------------------
+
+    std::cout << "Computing boundary..." << std::endl;
     Eigen::VectorXi bnd;
     igl::boundary_loop(F, bnd);
 
@@ -288,6 +265,7 @@ int main(int argc, char *argv[]){
     if (bnds[0].size() != bnd.rows())
         std::cout << "ERROR: wrong boundary size, " << bnds[0].size() << " vs " << bnd.rows() << std::endl;
 
+    std::cout << "Computing initial solution..." << std::endl;
     V_2d = paramLSCM(V_3d, F, bnd); // TODO use the first vertex in sleeves for constraint?
 
     bool check_degen = true;
@@ -300,6 +278,8 @@ int main(int argc, char *argv[]){
     
     // if LSCM flips the mesh, unflip it
     ///*
+
+    std::cout << "Initial orientation..." << std::endl;
     Eigen::MatrixXd normals;
     igl::per_face_normals(V_3d, F, normals);
     double mean_normal = normals.col(2).mean();
@@ -329,9 +309,10 @@ int main(int argc, char *argv[]){
     std::vector<Eigen::MatrixXd> V_2d_list = {V_2d};
     #endif
 
+    std::cout << "2D optimization..." << std::endl;
     int n_iterations = 100;
     for (int it=0; it<n_iterations; it++){
-        makeSparseMatrixFromJson(V_2d, V_3d, F, A, b, W, x, constraints);
+        makeSparseMatrixFromJson(V_2d, V_3d, F, A, b, W, x, constraints, I);
 
         solver.compute(A.transpose() * W * W * A);
 
@@ -371,8 +352,15 @@ int main(int argc, char *argv[]){
     //    V_2d.col(0) *= - 1.0;
     //}
 
-    igl::writeOBJ(path_output, V_2d, F);
 
+    std::cout << "Writing output..." << std::endl;
+    if (path_3d.substr(path_3d.length() - 4) == ".ply"){
+        igl::writePLY(path_output, V_2d, F);
+    }
+    else {
+        igl::writeOBJ(path_output, V_2d, F);
+    }
+    
     #ifdef FLATTEN_WITH_UI
     igl::opengl::glfw::Viewer viewer;
 
