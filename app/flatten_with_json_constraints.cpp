@@ -14,7 +14,9 @@
 #include <igl/remove_unreferenced.h>
 
 #include "param/param_utils.h"
+#include "split_ccs.h"
 
+//#define FLATTEN_WITH_UI
 #ifdef FLATTEN_WITH_UI
 #include <igl/opengl/glfw/Viewer.h>
 #endif
@@ -195,6 +197,39 @@ void makeSparseMatrixFromJson(const Eigen::MatrixXd& V_2d, const Eigen::MatrixXd
     x = Eigen::VectorXd::Zero(V_2d.rows() * 2);
 }
 
+Eigen::MatrixXd paramLSCMmultiComps(const Eigen::MatrixXd& V_3d, const Eigen::MatrixXi& F, 
+                                    std::vector<std::vector<int>> bnds){
+
+    std::vector<Eigen::MatrixXd> V_comps;
+    std::vector<Eigen::MatrixXi> F_comps;
+    Eigen::VectorXi vertex_components;
+    Eigen::VectorXi face_components;
+    std::vector<Eigen::VectorXi> v_maps;
+    std::vector<Eigen::VectorXi> f_maps;
+
+    splitMeshIntoCCs(V_3d, F, V_comps, F_comps, vertex_components,
+                       face_components, v_maps, f_maps);
+    
+    bnds = {};
+    int n_comps = V_comps.size();
+    for (int i=0; i<n_comps; i++){
+        Eigen::VectorXi bnd;
+        igl::boundary_loop(F_comps[i], bnd);
+
+        V_comps[i] = paramLSCM(V_comps[i], F_comps[i], bnd);
+
+        std::vector<int> stdVector(bnd.size());
+        for (int i = 0; i < bnd.size(); i++) stdVector[i] = bnd[i];
+        bnds.push_back(stdVector);
+    }
+
+    Eigen::MatrixXd V_merged;
+    //Eigen::MatrixXi F_merged;
+    mergeCCsBack(V_comps, vertex_components, v_maps, V_3d.rows(), V_merged);
+
+    return V_merged;
+}
+
 int main(int argc, char *argv[]){
     std::string path_3d, path_output, path_json, path_sleeve_ids, path_sleeve_pos;
     std::vector<int> middle_ids, sleeve_ids;
@@ -260,13 +295,59 @@ int main(int argc, char *argv[]){
 
     std::vector<std::vector<int>> bnds;
     igl::boundary_loop(F, bnds);
-    if (bnds.size() != 1) 
-        std::cout << "ERROR: wrong topology, number of boundaries = " << bnds.size() << " (should be 1)" << std::endl;
-    if (bnds[0].size() != bnd.rows())
-        std::cout << "ERROR: wrong boundary size, " << bnds[0].size() << " vs " << bnd.rows() << std::endl;
+    if (bnds.size() != 1){
 
-    std::cout << "Computing initial solution..." << std::endl;
-    V_2d = paramLSCM(V_3d, F, bnd); // TODO use the first vertex in sleeves for constraint?
+        V_2d = paramLSCMmultiComps(V_3d, F, bnds); 
+
+        /*
+        //std::cout << "ERROR: wrong topology, number of boundaries = " << bnds.size() << " (should be 1)" << std::endl;
+         
+        // Split V_3d into connected components V_3d_comp based on the boundaries in bnds
+        std::vector<Eigen:MatrixXd> V_3d_comp;
+        std::vector<Eigen::MatrixXi> F_comp;
+        std::vector<std::vector<int>> bnd_comp;
+
+        Eigen::VectorXi C;
+        //int n_ccs = igl::facet_components(F, C);
+        int n_ccs = igl::vertex_components(F, C);
+
+        for (int i = 0; i < n_ccs; ++i) {
+            // Find indices of faces belonging to the i-th connected component
+            Eigen::VectorXi component_faces = Eigen::VectorXi::Zero(F.rows());
+            for (int j = 0; j < F.rows(); ++j) {
+                if (C(j) == i) {
+                    component_faces(j) = 1;
+                }
+            }
+
+            // Extract vertices and faces of the i-th connected component
+            igl::slice_mask(V_3d, component_faces, 1, V_3d_comp[i]);
+            igl::slice_mask(F, component_faces, 1, F_comp[i]);
+        }*/
+
+        // TODO make them match the order of bnds too
+
+        /*
+        // Compute a V_2d_comp for each component using paramLSCM(V_3d_comp, F_comp, bnd_comp)
+        std::vector<Eigen::MatrixXd> V_2d_comp;
+        for (size_t i = 0; i < V_3d_comp.size(); ++i) {
+            Eigen::MatrixXd V_2d_temp;
+            V_2d_temp = paramLSCM(V_3d_comp[i], F_comp[i], bnd_comp[i]);
+            V_2d_comp.push_back(V_2d_temp);
+        }
+
+        // Merge into a global V_2d containing all components. The vertex ids in V_2d must match those of V_3d
+        merge_components(V_2d_comp, V_3d, V_2d);*/
+    }
+    else {
+        std::cout << "Computing initial solution..." << std::endl;
+        V_2d = paramLSCM(V_3d, F, bnd); 
+    }
+
+    if (bnds[0].size() != bnd.rows()){
+        std::cout << "ERROR: wrong boundary size, " << bnds[0].size() << " vs " << bnd.rows() << std::endl;
+    }
+
 
     bool check_degen = true;
     for (int i=0; i<F.rows(); i++){
@@ -353,8 +434,8 @@ int main(int argc, char *argv[]){
     //}
 
 
-    std::cout << "Writing output..." << std::endl;
-    if (path_3d.substr(path_3d.length() - 4) == ".ply"){
+    std::cout << "Writing output to " << path_output << " ..." << std::endl;
+    if (path_output.substr(path_output.length() - 4) == ".ply"){
         igl::writePLY(path_output, V_2d, F);
     }
     else {

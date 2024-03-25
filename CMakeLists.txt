@@ -57,3 +57,6 @@ target_link_libraries(flatten_with_semantic_constraints woven_param igl::opengl_
 
 add_executable(flatten_with_json_constraints app/flatten_with_json_constraints.cpp)
 target_link_libraries(flatten_with_json_constraints woven_param igl::opengl_glfw nlohmann_json)
+
+add_executable(test_split_ccs app/test_split_ccs.cpp)
+target_link_libraries(test_split_ccs woven_param igl::opengl_glfw)
